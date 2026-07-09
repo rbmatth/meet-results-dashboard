@@ -76,7 +76,7 @@ describe('computeScoreBook', () => {
     const t10 = sb.teams.find((t) => t.teamId === 10)!;
     expect(t10.champ).toBe(32);
     expect(t10.open).toBe(11);
-    expect(t10.combined).toBe(43);
+    expect(t10).not.toHaveProperty('combined');
     expect(sb.teams.find((t) => t.teamId === 20)!.champ).toBe(28);
   });
 
@@ -101,9 +101,22 @@ describe('computeScoreBook', () => {
     expect(sb.teams.find((t) => t.teamId === 10)!.champ).toBe(32); // actual winner
     expect(sb.teamsPredicted.find((t) => t.teamId === 20)!.champ).toBe(32); // seed favorite
     const pva10 = sb.predictedVsActual.find((t) => t.teamId === 10)!;
-    expect(pva10.actual.combined).toBe(32);
-    expect(pva10.predicted.combined).toBe(28);
-    expect(pva10.deltaCombined).toBe(4); // outperformed seed
+    expect(pva10.actual.champ).toBe(32);
+    expect(pva10.predicted.champ).toBe(28);
+    expect(pva10.deltaChamp).toBe(4); // outperformed champ seed
+    expect(pva10.deltaOpen).toBe(0); // no open events
+  });
+
+  it('keeps champ and open independent (no combined total)', () => {
+    const results = [
+      res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3000 }),
+      res({ id: 2, event_id: 2, division: 'OPEN', round_type: 'TIMED_FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3200 }),
+    ];
+    const sb = computeScoreBook(meet([champEvent, openEvent], results, [10]));
+    const s = sb.swimmers.find((x) => x.swimmerId === 100)!;
+    expect(s.champ).toBe(32);
+    expect(s.open).toBe(11);
+    expect(s).not.toHaveProperty('combined'); // never summed
   });
 
   it('computes improvement as seed minus achieved time', () => {

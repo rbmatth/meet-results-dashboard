@@ -46,7 +46,6 @@ export function pointsForPlace(
 export interface DivisionPoints {
   champ: number;
   open: number;
-  combined: number;
 }
 
 export interface TeamScore extends DivisionPoints {
@@ -68,7 +67,8 @@ export interface TeamPredictedActual {
   teamId: number;
   actual: DivisionPoints;
   predicted: DivisionPoints;
-  deltaCombined: number; // actual - predicted
+  deltaChamp: number; // actual.champ - predicted.champ
+  deltaOpen: number; // actual.open - predicted.open
 }
 
 export interface Improvement {
@@ -92,12 +92,11 @@ export interface ScoreBook {
   pointsByResultId: Map<number, number>;
 }
 
-const emptyDiv = (): DivisionPoints => ({ champ: 0, open: 0, combined: 0 });
+const emptyDiv = (): DivisionPoints => ({ champ: 0, open: 0 });
 
 function addPoints(target: DivisionPoints, division: Division, pts: number): void {
   if (division === 'CHAMP') target.champ += pts;
   else target.open += pts;
-  target.combined += pts;
 }
 
 function groupByEvent(results: Result[]): Map<number, Result[]> {
@@ -205,10 +204,12 @@ export function computeScoreBook(data: MeetData): ScoreBook {
     }
   }
 
+  // Championship is the primary competition, so default ordering is by champ points.
+  // Views re-sort per the active division as needed.
   const toTeamScores = (map: Map<number, DivisionPoints>): TeamScore[] =>
     [...map.entries()]
       .map(([teamId, p]) => ({ teamId, ...p }))
-      .sort((a, b) => b.combined - a.combined);
+      .sort((a, b) => b.champ - a.champ);
 
   const teams = toTeamScores(teamActual);
   const teamsPredicted = toTeamScores(teamPredicted);
@@ -217,16 +218,22 @@ export function computeScoreBook(data: MeetData): ScoreBook {
     .map((t) => {
       const actual = teamActual.get(t.id) ?? emptyDiv();
       const predicted = teamPredicted.get(t.id) ?? emptyDiv();
-      return { teamId: t.id, actual, predicted, deltaCombined: actual.combined - predicted.combined };
+      return {
+        teamId: t.id,
+        actual,
+        predicted,
+        deltaChamp: actual.champ - predicted.champ,
+        deltaOpen: actual.open - predicted.open,
+      };
     })
-    .sort((a, b) => b.actual.combined - a.actual.combined);
+    .sort((a, b) => b.actual.champ - a.actual.champ);
 
   return {
     teams,
     teamsPredicted,
-    groups: [...groupActual.values()].sort((a, b) => b.combined - a.combined),
-    swimmers: [...swimmerActual.values()].sort((a, b) => b.combined - a.combined),
-    swimmersPredicted: [...swimmerPredicted.values()].sort((a, b) => b.combined - a.combined),
+    groups: [...groupActual.values()].sort((a, b) => b.champ - a.champ),
+    swimmers: [...swimmerActual.values()].sort((a, b) => b.champ - a.champ),
+    swimmersPredicted: [...swimmerPredicted.values()].sort((a, b) => b.champ - a.champ),
     predictedVsActual,
     improvements: improvements.sort((a, b) => b.dropCs - a.dropCs),
     pointsByResultId,

@@ -15,31 +15,37 @@ import { DataService } from '../../core/data.service';
       <h1>{{ t.code }}</h1>
       @if (t.lsc) { <span class="chip">LSC {{ t.lsc }}</span> }
       <div class="stats">
-        <div class="stat"><div class="n">{{ r2(score()?.combined) }}</div><div class="l">Total points</div></div>
-        <div class="stat"><div class="n">{{ r2(score()?.champ) }}</div><div class="l">Champ</div></div>
-        <div class="stat"><div class="n">{{ r2(score()?.open) }}</div><div class="l">Open</div></div>
-        <div class="stat"><div class="n">{{ r2(pva()?.predicted?.combined) }}</div><div class="l">Predicted</div></div>
-        <div class="stat"><div class="n" [class.pos]="(pva()?.deltaCombined ?? 0) > 0" [class.neg]="(pva()?.deltaCombined ?? 0) < 0">{{ signed(pva()?.deltaCombined) }}</div><div class="l">vs Seed</div></div>
+        <div class="stat"><div class="n">{{ r2(score()?.champ) }}</div><div class="l">Champ points</div></div>
+        <div class="stat"><div class="n">{{ r2(score()?.open) }}</div><div class="l">Open points</div></div>
         <div class="stat"><div class="n">{{ roster().length }}</div><div class="l">Swimmers</div></div>
       </div>
 
+      <h2>Predicted vs actual (by division)</h2>
+      <table class="plain">
+        <thead><tr><th>Division</th><th class="num">Predicted</th><th class="num">Actual</th><th class="num">Δ vs seed</th></tr></thead>
+        <tbody>
+          <tr><td>Championship</td><td class="num">{{ r2(pva()?.predicted?.champ) }}</td><td class="num">{{ r2(pva()?.actual?.champ) }}</td><td class="num" [class.pos]="(pva()?.deltaChamp ?? 0) > 0" [class.neg]="(pva()?.deltaChamp ?? 0) < 0">{{ signed(pva()?.deltaChamp) }}</td></tr>
+          <tr><td>Open</td><td class="num">{{ r2(pva()?.predicted?.open) }}</td><td class="num">{{ r2(pva()?.actual?.open) }}</td><td class="num" [class.pos]="(pva()?.deltaOpen ?? 0) > 0" [class.neg]="(pva()?.deltaOpen ?? 0) < 0">{{ signed(pva()?.deltaOpen) }}</td></tr>
+        </tbody>
+      </table>
+
       <h2>Points by gender & age group</h2>
       <table class="plain">
-        <thead><tr><th>Gender</th><th>Age group</th><th class="num">Champ</th><th class="num">Open</th><th class="num">Total</th></tr></thead>
+        <thead><tr><th>Gender</th><th>Age group</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
         <tbody>
           @for (g of groups(); track g.key) {
-            <tr><td>{{ g.gender }}</td><td>{{ g.ageGroup }}</td><td class="num">{{ r2(g.champ) }}</td><td class="num">{{ r2(g.open) }}</td><td class="num">{{ r2(g.combined) }}</td></tr>
-          } @empty { <tr><td colspan="5" class="muted">No points.</td></tr> }
+            <tr><td>{{ g.gender }}</td><td>{{ g.ageGroup }}</td><td class="num">{{ r2(g.champ) }}</td><td class="num">{{ r2(g.open) }}</td></tr>
+          } @empty { <tr><td colspan="4" class="muted">No points.</td></tr> }
         </tbody>
       </table>
 
       <h2>Top scorers</h2>
       <table class="plain">
-        <thead><tr><th>#</th><th>Name</th><th class="num">Champ</th><th class="num">Open</th><th class="num">Points</th></tr></thead>
+        <thead><tr><th>#</th><th>Name</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
         <tbody>
           @for (s of topScorers(); track s.id; let i = $index) {
-            <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/swimmers', s.id]">{{ s.name }}</a></td><td class="num">{{ r2(s.champ) }}</td><td class="num">{{ r2(s.open) }}</td><td class="num">{{ r2(s.combined) }}</td></tr>
-          } @empty { <tr><td colspan="5" class="muted">No scorers.</td></tr> }
+            <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/swimmers', s.id]">{{ s.name }}</a></td><td class="num">{{ r2(s.champ) }}</td><td class="num">{{ r2(s.open) }}</td></tr>
+          } @empty { <tr><td colspan="4" class="muted">No scorers.</td></tr> }
         </tbody>
       </table>
 

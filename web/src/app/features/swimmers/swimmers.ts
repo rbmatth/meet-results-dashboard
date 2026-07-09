@@ -11,7 +11,6 @@ interface Row {
   swims: number;
   champ: number;
   open: number;
-  combined: number;
 }
 
 @Component({
@@ -36,7 +35,7 @@ interface Row {
         </select>
       </label>
     </div>
-    <app-data-table [columns]="columns" [rows]="rows()" [initialSort]="{ key: 'combined', dir: 'desc' }" searchPlaceholder="Search names…" />
+    <app-data-table [columns]="columns" [rows]="rows()" [initialSort]="{ key: 'champ', dir: 'desc' }" searchPlaceholder="Search names…" />
   `,
 })
 export class Swimmers {
@@ -54,7 +53,6 @@ export class Swimmers {
     { key: 'swims', header: 'Swims', value: (r) => r.swims, numeric: true },
     { key: 'champ', header: 'Champ', value: (r) => r.champ, numeric: true },
     { key: 'open', header: 'Open', value: (r) => r.open, numeric: true },
-    { key: 'combined', header: 'Points', value: (r) => r.combined, numeric: true },
   ];
 
   rows = computed<Row[]>(() => {
@@ -78,7 +76,6 @@ export class Swimmers {
           swims: swimCounts.get(s.id)?.length ?? 0,
           champ: round(sc?.champ),
           open: round(sc?.open),
-          combined: round(sc?.combined),
         };
       });
   });

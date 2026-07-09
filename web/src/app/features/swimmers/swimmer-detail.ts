@@ -32,9 +32,8 @@ interface Swim {
         @if (s.age != null) { <span class="chip">Age {{ s.age }}</span> }
       </p>
       <div class="stats">
-        <div class="stat"><div class="n">{{ score()?.combined ?? 0 }}</div><div class="l">Points</div></div>
-        <div class="stat"><div class="n">{{ score()?.champ ?? 0 }}</div><div class="l">Champ</div></div>
-        <div class="stat"><div class="n">{{ score()?.open ?? 0 }}</div><div class="l">Open</div></div>
+        <div class="stat"><div class="n">{{ score()?.champ ?? 0 }}</div><div class="l">Champ points</div></div>
+        <div class="stat"><div class="n">{{ score()?.open ?? 0 }}</div><div class="l">Open points</div></div>
         <div class="stat"><div class="n">{{ swims().length }}</div><div class="l">Swims</div></div>
       </div>
       <h2>Swims</h2>

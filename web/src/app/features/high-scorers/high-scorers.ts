@@ -11,7 +11,6 @@ interface Row {
   age: number | null;
   champ: number;
   open: number;
-  combined: number;
 }
 
 @Component({
@@ -25,7 +24,6 @@ interface Row {
     <div class="filters">
       <label>Rank by
         <select (change)="metric.set($any($event.target).value)">
-          <option value="combined">Combined</option>
           <option value="champ">Champ</option>
           <option value="open">Open</option>
         </select>
@@ -53,7 +51,7 @@ interface Row {
 })
 export class HighScorers {
   private data = inject(DataService);
-  metric = signal<'combined' | 'champ' | 'open'>('combined');
+  metric = signal<'champ' | 'open'>('champ');
   team = signal('');
   gender = signal('');
   age = signal('');
@@ -69,7 +67,6 @@ export class HighScorers {
     { key: 'age', header: 'Age', value: (r) => r.age, numeric: true },
     { key: 'champ', header: 'Champ', value: (r) => r.champ, numeric: true },
     { key: 'open', header: 'Open', value: (r) => r.open, numeric: true },
-    { key: 'combined', header: 'Combined', value: (r) => r.combined, numeric: true },
   ]);
 
   rows = computed<Row[]>(() => {
@@ -84,7 +81,7 @@ export class HighScorers {
         (!this.team() || String(sw.team_id) === this.team()) &&
         (!this.gender() || sw.gender === this.gender()) &&
         (!this.age() || String(sw.age) === this.age()))
-      .filter(({ score }) => score.combined > 0)
+      .filter(({ score }) => score[metric] > 0)
       .sort((a, b) => b.score[metric] - a.score[metric]);
     return filtered.map(({ score, sw }, i) => ({
       rank: i + 1,
@@ -95,7 +92,6 @@ export class HighScorers {
       age: sw!.age,
       champ: round(score.champ),
       open: round(score.open),
-      combined: round(score.combined),
     }));
   });
 }

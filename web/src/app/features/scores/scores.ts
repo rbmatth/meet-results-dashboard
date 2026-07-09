@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/data.service';
 
-type Metric = 'combined' | 'champ' | 'open';
+type Metric = 'champ' | 'open';
 
 @Component({
   selector: 'app-scores',
@@ -11,7 +11,7 @@ type Metric = 'combined' | 'champ' | 'open';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>Team Standings</h1>
-    <p class="muted">Champ and Open are scored with independent point tables; relays score 2× individual. “Predicted” ranks each event by seed time.</p>
+    <p class="muted">Championship and Open are separate competitions with independent point tables and are never combined; relays score 2× individual. “Predicted” ranks each event by seed time.</p>
 
     <div class="tabs">
       @for (m of metrics; track m.key) {
@@ -20,7 +20,7 @@ type Metric = 'combined' | 'champ' | 'open';
     </div>
 
     <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">Points</th><th></th><th class="num">Predicted</th><th class="num">Δ vs seed</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th class="num">{{ label() }} pts</th><th></th><th class="num">Predicted</th><th class="num">Δ vs seed</th></tr></thead>
       <tbody>
         @for (row of standings(); track row.teamId; let i = $index) {
           <tr>
@@ -35,7 +35,7 @@ type Metric = 'combined' | 'champ' | 'open';
       </tbody>
     </table>
 
-    <h2>Standings within a division (gender &amp; age group)</h2>
+    <h2>{{ label() }} standings within a division (gender &amp; age group)</h2>
     <div class="filters">
       <label>Gender
         <select (change)="gGender.set($any($event.target).value)">
@@ -49,20 +49,20 @@ type Metric = 'combined' | 'champ' | 'open';
       </label>
     </div>
     <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th><th class="num">Total</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
       <tbody>
         @for (g of groupStandings(); track g.teamId; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/teams', g.teamId]">{{ g.code }}</a></td><td class="num">{{ g.champ }}</td><td class="num">{{ g.open }}</td><td class="num">{{ g.combined }}</td></tr>
-        } @empty { <tr><td colspan="5" class="muted">No points in this division.</td></tr> }
+          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/teams', g.teamId]">{{ g.code }}</a></td><td class="num">{{ g.champ }}</td><td class="num">{{ g.open }}</td></tr>
+        } @empty { <tr><td colspan="4" class="muted">No points in this division.</td></tr> }
       </tbody>
     </table>
 
-    <h2>Top individual scorers</h2>
+    <h2>Top individual scorers — {{ label() }}</h2>
     <table class="plain">
-      <thead><tr><th>#</th><th>Name</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th><th class="num">Points</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
       <tbody>
         @for (s of topScorers(); track s.id; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/swimmers', s.id]">{{ s.name }}</a></td><td>{{ s.team }}</td><td class="num">{{ s.champ }}</td><td class="num">{{ s.open }}</td><td class="num">{{ s.combined }}</td></tr>
+          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/swimmers', s.id]">{{ s.name }}</a></td><td>{{ s.team }}</td><td class="num">{{ s.champ }}</td><td class="num">{{ s.open }}</td></tr>
         }
       </tbody>
     </table>
@@ -70,15 +70,16 @@ type Metric = 'combined' | 'champ' | 'open';
 })
 export class Scores {
   private data = inject(DataService);
-  metric = signal<Metric>('combined');
+  metric = signal<Metric>('champ');
   gGender = signal('F');
   gAge = signal('');
 
   metrics = [
-    { key: 'combined' as const, label: 'Combined' },
-    { key: 'champ' as const, label: 'Champ' },
+    { key: 'champ' as const, label: 'Championship' },
     { key: 'open' as const, label: 'Open' },
   ];
+
+  label = computed(() => (this.metric() === 'champ' ? 'Champ' : 'Open'));
 
   ageGroups = computed(() => {
     const groups = [...new Set((this.data.data()?.events ?? []).map((e) => e.age_group))].sort();
@@ -107,23 +108,29 @@ export class Scores {
   groupStandings = computed(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
+    const m = this.metric();
     return sb.groups
       .filter((g) => g.gender === this.gGender() && g.ageGroup === this.gAge())
-      .map((g) => ({ teamId: g.teamId, code: this.data.teamCode(g.teamId), champ: r2(g.champ), open: r2(g.open), combined: r2(g.combined) }))
-      .sort((a, b) => b.combined - a.combined);
+      .map((g) => ({ teamId: g.teamId, code: this.data.teamCode(g.teamId), champ: r2(g.champ), open: r2(g.open) }))
+      .filter((g) => g[m] > 0)
+      .sort((a, b) => b[m] - a[m]);
   });
 
   topScorers = computed(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
-    return sb.swimmers.slice(0, 20).map((s) => ({
-      id: s.swimmerId,
-      name: this.data.swimmer(s.swimmerId)?.name ?? '',
-      team: this.data.teamCode(s.teamId),
-      champ: r2(s.champ),
-      open: r2(s.open),
-      combined: r2(s.combined),
-    }));
+    const m = this.metric();
+    return [...sb.swimmers]
+      .filter((s) => s[m] > 0)
+      .sort((a, b) => b[m] - a[m])
+      .slice(0, 20)
+      .map((s) => ({
+        id: s.swimmerId,
+        name: this.data.swimmer(s.swimmerId)?.name ?? '',
+        team: this.data.teamCode(s.teamId),
+        champ: r2(s.champ),
+        open: r2(s.open),
+      }));
   });
 
   signed(n: number): string {

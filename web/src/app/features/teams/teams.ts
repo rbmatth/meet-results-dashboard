@@ -8,9 +8,9 @@ interface Row {
   lsc: string;
   swimmers: number;
   champ: number;
+  champPred: number;
   open: number;
-  combined: number;
-  predicted: number;
+  openPred: number;
 }
 
 @Component({
@@ -20,8 +20,8 @@ interface Row {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>Teams</h1>
-    <p class="muted">{{ rows().length }} teams · scored points are actual meet results; predicted is from seed times.</p>
-    <app-data-table [columns]="columns" [rows]="rows()" [initialSort]="{ key: 'combined', dir: 'desc' }" searchPlaceholder="Filter teams…" />
+    <p class="muted">{{ rows().length }} teams · Champ and Open are scored separately. Predicted columns are from seed times.</p>
+    <app-data-table [columns]="columns" [rows]="rows()" [initialSort]="{ key: 'champ', dir: 'desc' }" searchPlaceholder="Filter teams…" />
   `,
 })
 export class Teams {
@@ -32,9 +32,9 @@ export class Teams {
     { key: 'lsc', header: 'LSC', value: (r) => r.lsc },
     { key: 'swimmers', header: 'Swimmers', value: (r) => r.swimmers, numeric: true },
     { key: 'champ', header: 'Champ', value: (r) => r.champ, numeric: true },
+    { key: 'champPred', header: 'Champ (pred)', value: (r) => r.champPred, numeric: true },
     { key: 'open', header: 'Open', value: (r) => r.open, numeric: true },
-    { key: 'combined', header: 'Total', value: (r) => r.combined, numeric: true },
-    { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
+    { key: 'openPred', header: 'Open (pred)', value: (r) => r.openPred, numeric: true },
   ];
 
   rows = computed<Row[]>(() => {
@@ -46,15 +46,16 @@ export class Teams {
     const swimmers = this.data.swimmersByTeam();
     return d.teams.map((t) => {
       const s = byTeam.get(t.id);
+      const p = pred.get(t.id);
       return {
         id: t.id,
         code: t.code,
         lsc: t.lsc ?? '',
         swimmers: swimmers.get(t.id)?.length ?? 0,
         champ: round(s?.champ),
+        champPred: round(p?.champ),
         open: round(s?.open),
-        combined: round(s?.combined),
-        predicted: round(pred.get(t.id)?.combined),
+        openPred: round(p?.open),
       };
     });
   });
