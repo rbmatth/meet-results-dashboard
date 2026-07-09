@@ -14,9 +14,10 @@ describe('App', () => {
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
-    // DataService fires GET data/index.json in its constructor; satisfy it.
+    fixture.detectChanges();
+    // At the root URL there is no meet segment, so no meet data is requested.
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('data/index.json').flush([]);
+    http.verify();
     expect(fixture.componentInstance).toBeTruthy();
   });
 });

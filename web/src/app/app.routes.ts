@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
+import { defaultMeetRedirect } from './core/default-meet.guard';
 
-// Routes shared by both "meets" (Championship and Open). The active division is the
-// first URL segment; DivisionService reads it.
+// Routes shared by both divisions ("meets") within a scraped meet. The active meet is the
+// first URL segment and the division is the second; DivisionService reads them.
 const divisionRoutes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'scores' },
   { path: 'scores', loadComponent: () => import('./features/scores/scores').then((m) => m.Scores), title: 'Standings' },
@@ -16,8 +17,15 @@ const divisionRoutes: Routes = [
 ];
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'championship/scores' },
-  { path: 'championship', children: divisionRoutes },
-  { path: 'open', children: divisionRoutes },
-  { path: '**', redirectTo: 'championship/scores' },
+  { path: '', pathMatch: 'full', canActivate: [defaultMeetRedirect], children: [] },
+  {
+    path: ':meet',
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'championship/scores' },
+      { path: 'championship', children: divisionRoutes },
+      { path: 'open', children: divisionRoutes },
+      { path: '**', redirectTo: 'championship/scores' },
+    ],
+  },
+  { path: '**', canActivate: [defaultMeetRedirect], children: [] },
 ];

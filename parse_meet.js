@@ -220,6 +220,33 @@ function splitName(raw) {
   return { last, first: parts.join(' '), full: s };
 }
 
+// Canonical team aliases. The 2026 results export truncated short-names (with spaces)
+// instead of 2025's single-token codes; map them to a canonical code + full name so the
+// same team is consistent across meets. Full names are from the 2026 psych sheets.
+// Keys are the raw team strings as they appear in the results.
+const TEAM_ALIASES = {
+  'Friendly': { code: 'FR', name: 'Friendly Frogs' },
+  'Hamilton Lakes-N': { code: 'HL-NC', name: 'Hamilton Lakes Hornets' },
+  'BurMil-NC': { code: 'BUR-NC', name: 'Bur-Mil Marlins' },
+  'Lightning-NC': { code: 'LJST-NC', name: 'Lake Jeanette Lightning' },
+  'Sherwood-NC': { code: 'SW-NC', name: 'Sherwood Swim and Racquet' },
+  'Cardinal-NC': { code: 'CAR-NC', name: 'Cardinal Swim Team' },
+  'HP Elks-NC': { code: 'HPE-NC', name: 'High Point Elks' },
+  'Starmount-NC': { code: 'SFCC-NC', name: 'Starmont Forest Country Club' },
+  'Grandover-NC': { code: 'GSRC-NC', name: 'Grandover Swim & Racquet Club' },
+  'Forest Oaks-NC': { code: 'FOCC-NC', name: 'Forest Oaks Country Club' },
+  'Scc Fins-NC': { code: 'SCC-NC', name: 'SCC Fins' },
+  'HF-NC': { code: 'HF-NC', name: 'Henson Forest' },
+  'SESC-NC': { code: 'SESC-NC', name: 'Southeast Tigersharks' },
+  'GVP-GN': { code: 'GVP-GN', name: 'Green Valley Park Gators' },
+  'ORSC-NC': { code: 'ORSC-NC', name: 'Oak Ridge Swim Club' },
+  'RWD-NC': { code: 'RWD-NC', name: 'RWD' },
+  'PT': { code: 'PT', name: 'Pinetop Piranhas' },
+  // Uncertain 2025 match — keep own code, use authoritative full name.
+  'Gso Elks-NC': { code: 'GEL-NC', name: 'Greensboro Elks' },
+  'Blue Dolphins-NC': { code: 'BD-NC', name: 'Blue Dolphins' },
+};
+
 // ---------------------------------------------------------------------------
 // Database access layer
 // ---------------------------------------------------------------------------
@@ -231,7 +258,8 @@ class Store {
     this.teamCache = new Map();
     this.swimmerCache = new Map();
     this.ps = {
-      team: db.prepare('INSERT OR IGNORE INTO team(code, lsc) VALUES (?, ?)'),
+      team: db.prepare(`INSERT INTO team(code, lsc, name) VALUES (?, ?, ?)
+                        ON CONFLICT(code) DO UPDATE SET name = COALESCE(excluded.name, name)`),
       teamGet: db.prepare('SELECT team_id FROM team WHERE code = ?'),
       swimmer: db.prepare(`INSERT OR IGNORE INTO swimmer(meet_id, team_id, last_name, first_name, full_name, gender, age)
                            VALUES (?, ?, ?, ?, ?, ?, ?)`),
@@ -253,11 +281,14 @@ class Store {
     };
   }
 
-  teamId(code) {
+  teamId(rawCode) {
+    const alias = TEAM_ALIASES[rawCode.trim()];
+    const code = alias ? alias.code : rawCode.trim();
+    const name = alias ? alias.name : null;
     if (this.teamCache.has(code)) return this.teamCache.get(code);
     const parts = code.split('-');
     const lsc = parts.length > 1 && /^[A-Z]{2}$/.test(parts[parts.length - 1]) ? parts[parts.length - 1] : null;
-    this.ps.team.run(code, lsc);
+    this.ps.team.run(code, lsc, name);
     const id = this.ps.teamGet.get(code).team_id;
     this.teamCache.set(code, id);
     return id;
@@ -387,14 +418,20 @@ function parseEventFile(dir, fileName, ctx, store) {
         continue;
       }
     } else {
-      // Individual result row: "  1 Xie, George   10 BUR-NC   <seed>  <time>"
-      const row = clean.match(/^\s*(\d+|--)\s+(.+?)\s+(\d{1,2})\s+(\S+)\s+(.*)$/);
-      if (!row) continue;
-      const place = row[1] === '--' ? null : parseInt(row[1], 10);
-      const name = row[2].trim();
-      const age = parseInt(row[3], 10);
-      const teamCode = row[4];
-      const cells = parseTimeCells(row[5]);
+      // Individual result row: "  1 Xie, George   10 BUR-NC   <seed>  <time>".
+      // Team names may contain spaces (e.g. "Hamilton Lakes-N"), so parse right-anchored:
+      // find the time cells, then read name/age/team from the text before them.
+      const lead = clean.match(/^\s*(\d+|--)\s+(.*)$/);
+      if (!lead) continue;
+      const rest = lead[2];
+      const cells = parseTimeCells(rest);
+      const firstIdx = cells.length ? cells[0].index : rest.length;
+      const info = rest.slice(0, firstIdx).match(/^(.+?)\s+(\d{1,2})\s+(.+?)\s*$/);
+      if (!info) continue;
+      const place = lead[1] === '--' ? null : parseInt(lead[1], 10);
+      const name = info[1].trim();
+      const age = parseInt(info[2], 10);
+      const teamCode = info[3].trim();
       const seed = cells[0] || {};
       const swum = cells[1] || {};
       // In a FINAL file, non-qualifiers (the trailing prelim section) have no swum

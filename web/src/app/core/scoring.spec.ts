@@ -31,7 +31,7 @@ function res(p: Partial<Result>): Result {
 function meet(events: MeetData['events'], results: Result[], teamIds: number[]): MeetData {
   return {
     meet: { code: 'T', name: 'T', facility: null, location: null, start_date: null, end_date: null, course: 'Y' },
-    teams: teamIds.map((id) => ({ id, code: `T${id}`, lsc: null })),
+    teams: teamIds.map((id) => ({ id, code: `T${id}`, lsc: null, name: null })),
     swimmers: [],
     events,
     results,

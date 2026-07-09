@@ -6,6 +6,7 @@ import { Column, DataTable } from '../../shared/data-table';
 interface Row {
   id: number;
   code: string;
+  name: string;
   lsc: string;
   swimmers: number;
   points: number;
@@ -30,7 +31,7 @@ export class Teams {
 
   columns = computed<Column<Row>[]>(() => [
     { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.id) },
-    { key: 'lsc', header: 'LSC', value: (r) => r.lsc },
+    { key: 'name', header: 'Name', value: (r) => r.name },
     { key: 'swimmers', header: 'Swimmers', value: (r) => r.swimmers, numeric: true },
     { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
     { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
@@ -51,6 +52,7 @@ export class Teams {
       return {
         id: t.id,
         code: t.code,
+        name: t.name ?? '',
         lsc: t.lsc ?? '',
         swimmers: swimmers.get(t.id)?.length ?? 0,
         points: pts,

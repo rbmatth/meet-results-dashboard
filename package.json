@@ -10,6 +10,6 @@
   "scripts": {
     "parse": "node parse_meet.js",
     "export": "node export_json.js",
-    "build:data": "node parse_meet.js results/2025CSA meets.db && node export_json.js meets.db web/public/data"
+    "build:data": "node parse_meet.js results/2025CSA meets.db && node parse_meet.js results/2026CSA meets.db && node export_json.js meets.db web/public/data"
   }
 }

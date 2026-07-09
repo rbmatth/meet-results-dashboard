@@ -8,6 +8,7 @@ export interface Team {
   id: number;
   code: string;
   lsc: string | null;
+  name: string | null;
 }
 
 export interface Swimmer {

@@ -34,7 +34,7 @@ for (const meet of meets) {
   const mid = meet.meet_id;
 
   const teams = all(
-    `SELECT DISTINCT t.team_id AS id, t.code, t.lsc
+    `SELECT DISTINCT t.team_id AS id, t.code, t.lsc, t.name
      FROM team t
      WHERE t.team_id IN (SELECT team_id FROM swimmer WHERE meet_id = ?)
         OR t.team_id IN (SELECT rl.team_id FROM relay rl

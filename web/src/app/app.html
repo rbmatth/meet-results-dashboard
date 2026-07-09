@@ -2,7 +2,11 @@
   <div class="brand">
     <span class="logo">🏊</span>
     <div>
-      <div class="meet-name">{{ data.data()?.meet?.name ?? 'Meet Manager' }} — {{ div.label() }}</div>
+      <select class="meet-select" (change)="div.switchMeet($any($event.target).value)">
+        @for (m of div.meets(); track m.code) {
+          <option [value]="m.code" [selected]="m.code === div.meet()">{{ m.name }}</option>
+        }
+      </select>
       @if (data.data()?.meet; as m) {
         <div class="meet-sub">{{ m.facility }} · {{ m.start_date }} – {{ m.end_date }}</div>
       }

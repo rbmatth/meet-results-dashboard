@@ -13,7 +13,8 @@ import { DivisionService } from '../../core/division.service';
   template: `
     @if (team(); as t) {
       <a [routerLink]="div.link('teams')" class="muted">← Teams</a>
-      <h1>{{ t.code }} <span class="muted" style="font-size:1rem">— {{ div.label() }}</span></h1>
+      <h1>{{ t.name || t.code }} <span class="muted" style="font-size:1rem">— {{ div.label() }}</span></h1>
+      <span class="chip">{{ t.code }}</span>
       @if (t.lsc) { <span class="chip">LSC {{ t.lsc }}</span> }
       <div class="stats">
         <div class="stat"><div class="n">{{ r2(score()?.[div.key()]) }}</div><div class="l">{{ div.label() }} points</div></div>

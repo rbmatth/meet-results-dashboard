@@ -61,34 +61,38 @@ export class DataService {
     return m;
   });
 
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private indexPromise?: Promise<MeetIndexEntry[]>;
+  private loadedCode: string | null = null;
+
   constructor() {
-    // Only fetch in the browser: relative URLs are invalid during server prerendering.
-    if (isPlatformBrowser(inject(PLATFORM_ID))) {
-      void this.init();
-    } else {
-      this.loading.set(false);
-    }
+    if (!this.isBrowser) this.loading.set(false);
   }
 
-  private async init(): Promise<void> {
-    try {
-      const idx = await firstValueFrom(this.http.get<MeetIndexEntry[]>('data/index.json'));
-      this.index.set(idx);
-      if (idx.length) await this.loadMeet(idx[0].code);
-    } catch (e: unknown) {
-      this.error.set(e instanceof Error ? e.message : String(e));
-    } finally {
-      this.loading.set(false);
+  /** Load (once) and return the meet index. Safe to call repeatedly. */
+  ensureIndex(): Promise<MeetIndexEntry[]> {
+    if (!this.indexPromise) {
+      this.indexPromise = this.isBrowser
+        ? firstValueFrom(this.http.get<MeetIndexEntry[]>('data/index.json'))
+            .then((idx) => (this.index.set(idx), idx))
+            .catch((e: unknown) => (this.error.set(errMsg(e)), []))
+        : Promise.resolve([]);
     }
+    return this.indexPromise;
   }
 
+  /** Load a meet's data by code (the meet named in the URL). Deduped. */
   async loadMeet(code: string): Promise<void> {
+    if (!this.isBrowser || !code || code === this.loadedCode) return;
+    this.loadedCode = code;
     this.loading.set(true);
+    this.error.set(null);
     try {
-      const d = await firstValueFrom(this.http.get<MeetData>(`data/${code}.json`));
+      const d = await firstValueFrom(this.http.get<MeetData>(`data/${encodeURIComponent(code)}.json`));
       this.data.set(d);
     } catch (e: unknown) {
-      this.error.set(e instanceof Error ? e.message : String(e));
+      this.loadedCode = null;
+      this.error.set(errMsg(e));
     } finally {
       this.loading.set(false);
     }
@@ -118,4 +122,8 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V): void {
   let arr = m.get(k);
   if (!arr) m.set(k, (arr = []));
   arr.push(v);
+}
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
