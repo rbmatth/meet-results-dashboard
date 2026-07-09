@@ -50,6 +50,14 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a.active { background: var(--accent); color: #04283a; font-weight: 650; }
 
+.division-switch { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+.division-switch a {
+  padding: .35rem .9rem; border-radius: 999px; text-decoration: none; color: var(--muted);
+  font-size: .82rem; font-weight: 600;
+}
+.division-switch a:hover { color: var(--text); }
+.division-switch a.active { background: var(--accent-2); color: #0b1020; }
+
 .content { padding: 1.25rem 1.5rem 4rem; max-width: 1280px; margin: 0 auto; }
 .state { padding: 3rem; text-align: center; color: var(--muted); }
 .state.error { color: var(--bad); }

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DataService } from '../../core/data.service';
+import { DivisionService } from '../../core/division.service';
 import { Column, DataTable } from '../../shared/data-table';
 
 interface Row {
@@ -9,8 +10,7 @@ interface Row {
   gender: string;
   age: number | null;
   swims: number;
-  champ: number;
-  open: number;
+  points: number;
 }
 
 @Component({
@@ -19,7 +19,8 @@ interface Row {
   imports: [DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h1>Swimmers</h1>
+    <h1>{{ div.label() }} — Swimmers</h1>
+    <p class="muted">{{ rows().length }} swimmers with a {{ div.label() }} swim.</p>
     <div class="filters">
       <label>Team
         <select (change)="team.set($any($event.target).value)">
@@ -35,47 +36,50 @@ interface Row {
         </select>
       </label>
     </div>
-    <app-data-table [columns]="columns" [rows]="rows()" [initialSort]="{ key: 'champ', dir: 'desc' }" searchPlaceholder="Search names…" />
+    <app-data-table [columns]="columns()" [rows]="rows()" [initialSort]="{ key: 'points', dir: 'desc' }" searchPlaceholder="Search names…" />
   `,
 })
 export class Swimmers {
   private data = inject(DataService);
+  protected div = inject(DivisionService);
   team = signal('');
   gender = signal('');
 
   teams = computed(() => this.data.data()?.teams ?? []);
 
-  columns: Column<Row>[] = [
-    { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => ['/swimmers', r.id] },
+  columns = computed<Column<Row>[]>(() => [
+    { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => this.div.link('swimmers', r.id) },
     { key: 'team', header: 'Team', value: (r) => r.team },
     { key: 'gender', header: 'G', value: (r) => r.gender, align: 'center' },
     { key: 'age', header: 'Age', value: (r) => r.age, numeric: true },
     { key: 'swims', header: 'Swims', value: (r) => r.swims, numeric: true },
-    { key: 'champ', header: 'Champ', value: (r) => r.champ, numeric: true },
-    { key: 'open', header: 'Open', value: (r) => r.open, numeric: true },
-  ];
+    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
+  ]);
 
   rows = computed<Row[]>(() => {
     const d = this.data.data();
     const sb = this.data.scoreBook();
     if (!d || !sb) return [];
+    const division = this.div.division();
+    const k = this.div.key();
     const scoreBySwimmer = new Map(sb.swimmers.map((s) => [s.swimmerId, s]));
     const swimCounts = this.data.resultsBySwimmer();
+    const divsBySwimmer = this.data.divisionsBySwimmer();
     const teamFilter = this.team();
     const genderFilter = this.gender();
     return d.swimmers
+      .filter((s) => divsBySwimmer.get(s.id)?.has(division))
       .filter((s) => (!teamFilter || String(s.team_id) === teamFilter) && (!genderFilter || s.gender === genderFilter))
       .map((s) => {
-        const sc = scoreBySwimmer.get(s.id);
+        const swims = (swimCounts.get(s.id) ?? []).filter((r) => r.division === division).length;
         return {
           id: s.id,
           name: s.name,
           team: this.data.teamCode(s.team_id),
           gender: s.gender === 'F' ? 'F' : s.gender === 'M' ? 'M' : '',
           age: s.age,
-          swims: swimCounts.get(s.id)?.length ?? 0,
-          champ: round(sc?.champ),
-          open: round(sc?.open),
+          swims,
+          points: round(scoreBySwimmer.get(s.id)?.[k]),
         };
       });
   });

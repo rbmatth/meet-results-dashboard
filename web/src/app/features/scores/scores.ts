@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/data.service';
-
-type Metric = 'champ' | 'open';
+import { DivisionService } from '../../core/division.service';
 
 @Component({
   selector: 'app-scores',
@@ -10,22 +9,16 @@ type Metric = 'champ' | 'open';
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h1>Team Standings</h1>
-    <p class="muted">Championship and Open are separate competitions with independent point tables and are never combined; relays score 2× individual. “Predicted” ranks each event by seed time.</p>
-
-    <div class="tabs">
-      @for (m of metrics; track m.key) {
-        <button [class.active]="metric() === m.key" (click)="metric.set(m.key)">{{ m.label }}</button>
-      }
-    </div>
+    <h1>{{ div.label() }} — Team Standings</h1>
+    <p class="muted">Points are the {{ div.label() }} competition only; relays score 2× individual. “Predicted” ranks each event by seed time.</p>
 
     <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">{{ label() }} pts</th><th></th><th class="num">Predicted</th><th class="num">Δ vs seed</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th class="num">Points</th><th></th><th class="num">Predicted</th><th class="num">Δ vs seed</th></tr></thead>
       <tbody>
         @for (row of standings(); track row.teamId; let i = $index) {
           <tr>
             <td class="num">{{ i + 1 }}</td>
-            <td><a [routerLink]="['/teams', row.teamId]">{{ row.code }}</a></td>
+            <td><a [routerLink]="div.link('teams', row.teamId)">{{ row.code }}</a></td>
             <td class="num">{{ row.points }}</td>
             <td style="width:40%"><div class="bar-wrap"><span class="bar" [style.width.%]="row.pct"></span></div></td>
             <td class="num">{{ row.predicted }}</td>
@@ -35,7 +28,7 @@ type Metric = 'champ' | 'open';
       </tbody>
     </table>
 
-    <h2>{{ label() }} standings within a division (gender &amp; age group)</h2>
+    <h2>Standings within a division (gender &amp; age group)</h2>
     <div class="filters">
       <label>Gender
         <select (change)="gGender.set($any($event.target).value)">
@@ -49,20 +42,20 @@ type Metric = 'champ' | 'open';
       </label>
     </div>
     <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th class="num">Points</th></tr></thead>
       <tbody>
         @for (g of groupStandings(); track g.teamId; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/teams', g.teamId]">{{ g.code }}</a></td><td class="num">{{ g.champ }}</td><td class="num">{{ g.open }}</td></tr>
-        } @empty { <tr><td colspan="4" class="muted">No points in this division.</td></tr> }
+          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="div.link('teams', g.teamId)">{{ g.code }}</a></td><td class="num">{{ g.points }}</td></tr>
+        } @empty { <tr><td colspan="3" class="muted">No points in this division.</td></tr> }
       </tbody>
     </table>
 
-    <h2>Top individual scorers — {{ label() }}</h2>
+    <h2>Top individual scorers</h2>
     <table class="plain">
-      <thead><tr><th>#</th><th>Name</th><th>Team</th><th class="num">Champ</th><th class="num">Open</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>Team</th><th class="num">Points</th></tr></thead>
       <tbody>
         @for (s of topScorers(); track s.id; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="['/swimmers', s.id]">{{ s.name }}</a></td><td>{{ s.team }}</td><td class="num">{{ s.champ }}</td><td class="num">{{ s.open }}</td></tr>
+          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="div.link('swimmers', s.id)">{{ s.name }}</a></td><td>{{ s.team }}</td><td class="num">{{ s.points }}</td></tr>
         }
       </tbody>
     </table>
@@ -70,16 +63,9 @@ type Metric = 'champ' | 'open';
 })
 export class Scores {
   private data = inject(DataService);
-  metric = signal<Metric>('champ');
+  protected div = inject(DivisionService);
   gGender = signal('F');
   gAge = signal('');
-
-  metrics = [
-    { key: 'champ' as const, label: 'Championship' },
-    { key: 'open' as const, label: 'Open' },
-  ];
-
-  label = computed(() => (this.metric() === 'champ' ? 'Champ' : 'Open'));
 
   ageGroups = computed(() => {
     const groups = [...new Set((this.data.data()?.events ?? []).map((e) => e.age_group))].sort();
@@ -90,15 +76,15 @@ export class Scores {
   standings = computed(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
-    const m = this.metric();
+    const k = this.div.key();
     const pred = new Map(sb.teamsPredicted.map((t) => [t.teamId, t]));
     const rows = sb.teams
       .map((t) => ({
         teamId: t.teamId,
         code: this.data.teamCode(t.teamId),
-        points: r2(t[m]),
-        predicted: r2(pred.get(t.teamId)?.[m] ?? 0),
-        delta: r2(t[m] - (pred.get(t.teamId)?.[m] ?? 0)),
+        points: r2(t[k]),
+        predicted: r2(pred.get(t.teamId)?.[k] ?? 0),
+        delta: r2(t[k] - (pred.get(t.teamId)?.[k] ?? 0)),
       }))
       .sort((a, b) => b.points - a.points);
     const max = Math.max(1, ...rows.map((r) => r.points));
@@ -108,28 +94,27 @@ export class Scores {
   groupStandings = computed(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
-    const m = this.metric();
+    const k = this.div.key();
     return sb.groups
       .filter((g) => g.gender === this.gGender() && g.ageGroup === this.gAge())
-      .map((g) => ({ teamId: g.teamId, code: this.data.teamCode(g.teamId), champ: r2(g.champ), open: r2(g.open) }))
-      .filter((g) => g[m] > 0)
-      .sort((a, b) => b[m] - a[m]);
+      .map((g) => ({ teamId: g.teamId, code: this.data.teamCode(g.teamId), points: r2(g[k]) }))
+      .filter((g) => g.points > 0)
+      .sort((a, b) => b.points - a.points);
   });
 
   topScorers = computed(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
-    const m = this.metric();
+    const k = this.div.key();
     return [...sb.swimmers]
-      .filter((s) => s[m] > 0)
-      .sort((a, b) => b[m] - a[m])
+      .filter((s) => s[k] > 0)
+      .sort((a, b) => b[k] - a[k])
       .slice(0, 20)
       .map((s) => ({
         id: s.swimmerId,
         name: this.data.swimmer(s.swimmerId)?.name ?? '',
         team: this.data.teamCode(s.teamId),
-        champ: r2(s.champ),
-        open: r2(s.open),
+        points: r2(s[k]),
       }));
   });
 

@@ -2,7 +2,7 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { EventInfo, MeetData, MeetIndexEntry, Result, Swimmer, Team } from './models';
+import { Division, EventInfo, MeetData, MeetIndexEntry, Result, Swimmer, Team } from './models';
 import { computeScoreBook, ScoreBook } from './scoring';
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +34,19 @@ export class DataService {
   readonly resultsByEvent = computed(() => {
     const m = new Map<number, Result[]>();
     for (const r of this.data()?.results ?? []) push(m, r.event_id, r);
+    return m;
+  });
+
+  // Which divisions each swimmer participated in (from individual results), so lists can
+  // scope to the active division.
+  readonly divisionsBySwimmer = computed(() => {
+    const m = new Map<number, Set<Division>>();
+    for (const r of this.data()?.results ?? []) {
+      if (r.swimmer_id == null) continue;
+      let set = m.get(r.swimmer_id);
+      if (!set) m.set(r.swimmer_id, (set = new Set()));
+      set.add(r.division);
+    }
     return m;
   });
 

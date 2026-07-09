@@ -3,6 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
+import { DivisionService } from '../../core/division.service';
 import { DropPipe, TimePipe, formatCs } from '../../core/format';
 import { Result, RoundType } from '../../core/models';
 
@@ -19,7 +20,7 @@ interface RoundBlock {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
-      <a routerLink="/events" class="muted">← Events</a>
+      <a [routerLink]="div.link('events')" class="muted">← Events</a>
       <h1>{{ e.title.replace(pfx, '') }}</h1>
       <p>
         <span class="chip" [class.champ]="e.division === 'CHAMP'" [class.open]="e.division === 'OPEN'">{{ e.division === 'CHAMP' ? 'Champ' : 'Open' }}</span>
@@ -36,7 +37,7 @@ interface RoundBlock {
               @for (r of block.results; track r.id) {
                 <tr>
                   <td class="num">{{ r.place }}</td>
-                  <td><a [routerLink]="['/teams', r.team_id]">{{ code(r.team_id) }}</a> '{{ r.relay?.letter }}'</td>
+                  <td><a [routerLink]="div.link('teams', r.team_id ?? 0)">{{ code(r.team_id) }}</a> '{{ r.relay?.letter }}'</td>
                   <td class="num">{{ r.seed_cs | time }}</td>
                   <td class="num">{{ r.time_code || (r.time_cs | time) }}</td>
                   <td class="num">{{ pts(r.id) }}</td>
@@ -60,8 +61,8 @@ interface RoundBlock {
                 <tr>
                   <td class="num">{{ r.place }}</td>
                   <td>{{ r.heat_group }}</td>
-                  <td><a [routerLink]="['/swimmers', r.swimmer_id]">{{ name(r.swimmer_id) }}</a></td>
-                  <td><a [routerLink]="['/teams', r.team_id]">{{ code(r.team_id) }}</a></td>
+                  <td><a [routerLink]="div.link('swimmers', r.swimmer_id ?? 0)">{{ name(r.swimmer_id) }}</a></td>
+                  <td><a [routerLink]="div.link('teams', r.team_id ?? 0)">{{ code(r.team_id) }}</a></td>
                   <td class="num">{{ age(r.swimmer_id) }}</td>
                   <td class="num">{{ r.seed_cs | time }}</td>
                   <td class="num">{{ r.time_code || (r.time_cs | time) }}</td>
@@ -85,6 +86,7 @@ interface RoundBlock {
 })
 export class EventDetail {
   private data = inject(DataService);
+  protected div = inject(DivisionService);
   private route = inject(ActivatedRoute);
   private id = toSignal(this.route.paramMap.pipe(map((p) => Number(p.get('id')))), { initialValue: 0 });
   pfx = /^Event\s+\d+\s+/;

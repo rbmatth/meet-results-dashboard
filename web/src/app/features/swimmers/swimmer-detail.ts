@@ -3,12 +3,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
+import { DivisionService } from '../../core/division.service';
 import { DropPipe, TimePipe } from '../../core/format';
-import { Result } from '../../core/models';
+import { Division, Result } from '../../core/models';
 
 interface Swim {
   result: Result;
   eventId: number;
+  eventDivision: Division;
   eventTitle: string;
   eventNumber: number;
   division: string;
@@ -24,17 +26,16 @@ interface Swim {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (swimmer(); as s) {
-      <a routerLink="/swimmers" class="muted">← Swimmers</a>
+      <a [routerLink]="div.link('swimmers')" class="muted">← Swimmers</a>
       <h1>{{ s.name }}</h1>
       <p>
-        <a [routerLink]="['/teams', s.team_id]" class="chip">{{ teamCode() }}</a>
+        <a [routerLink]="div.link('teams', s.team_id)" class="chip">{{ teamCode() }}</a>
         <span class="chip">{{ s.gender === 'F' ? 'Girls' : 'Boys' }}</span>
         @if (s.age != null) { <span class="chip">Age {{ s.age }}</span> }
       </p>
       <div class="stats">
-        <div class="stat"><div class="n">{{ score()?.champ ?? 0 }}</div><div class="l">Champ points</div></div>
-        <div class="stat"><div class="n">{{ score()?.open ?? 0 }}</div><div class="l">Open points</div></div>
-        <div class="stat"><div class="n">{{ swims().length }}</div><div class="l">Swims</div></div>
+        <div class="stat"><div class="n">{{ score()?.[div.key()] ?? 0 }}</div><div class="l">{{ div.label() }} points</div></div>
+        <div class="stat"><div class="n">{{ swims().length }}</div><div class="l">Swims (all)</div></div>
       </div>
       <h2>Swims</h2>
       <table class="plain">
@@ -44,7 +45,7 @@ interface Swim {
         <tbody>
           @for (sw of swims(); track sw.result.id) {
             <tr>
-              <td><a [routerLink]="['/events', sw.eventId]">{{ sw.eventTitle }}</a></td>
+              <td><a [routerLink]="div.eventLink({ id: sw.eventId, division: sw.eventDivision })">{{ sw.eventTitle }}</a></td>
               <td><span class="chip" [class.champ]="sw.division === 'Champ'" [class.open]="sw.division === 'Open'">{{ sw.division }}</span></td>
               <td>{{ sw.round }}</td>
               <td>{{ sw.result.heat_group }}</td>
@@ -64,6 +65,7 @@ interface Swim {
 })
 export class SwimmerDetail {
   private data = inject(DataService);
+  protected div = inject(DivisionService);
   private route = inject(ActivatedRoute);
   private id = toSignal(this.route.paramMap.pipe(map((p) => Number(p.get('id')))), { initialValue: 0 });
 
@@ -85,6 +87,7 @@ export class SwimmerDetail {
         return {
           result,
           eventId: result.event_id,
+          eventDivision: result.division,
           eventTitle: ev ? ev.title.replace(/^Event\s+\d+\s+/, '') : String(result.event_id),
           eventNumber: ev?.number ?? 0,
           division: ev?.division === 'OPEN' ? 'Open' : 'Champ',

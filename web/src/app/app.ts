@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DataService } from './core/data.service';
+import { DivisionService } from './core/division.service';
 
 @Component({
   selector: 'app-root',
@@ -12,13 +13,18 @@ import { DataService } from './core/data.service';
 })
 export class App {
   protected readonly data = inject(DataService);
+  protected readonly div = inject(DivisionService);
 
-  protected readonly nav = [
-    { path: '/scores', label: 'Standings' },
-    { path: '/teams', label: 'Teams' },
-    { path: '/swimmers', label: 'Swimmers' },
-    { path: '/events', label: 'Events' },
-    { path: '/high-scorers', label: 'High Scorers' },
-    { path: '/improvements', label: 'Improvements' },
+  protected readonly navItems = [
+    { seg: 'scores', label: 'Standings' },
+    { seg: 'teams', label: 'Teams' },
+    { seg: 'swimmers', label: 'Swimmers' },
+    { seg: 'events', label: 'Events' },
+    { seg: 'high-scorers', label: 'High Scorers' },
+    { seg: 'improvements', label: 'Improvements' },
   ];
+
+  protected readonly nav = computed(() =>
+    this.navItems.map((i) => ({ ...i, link: this.div.link(i.seg) })),
+  );
 }

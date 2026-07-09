@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DataService } from '../../core/data.service';
+import { DivisionService } from '../../core/division.service';
 import { Column, DataTable } from '../../shared/data-table';
 
 interface Row {
@@ -9,8 +10,7 @@ interface Row {
   team: string;
   gender: string;
   age: number | null;
-  champ: number;
-  open: number;
+  points: number;
 }
 
 @Component({
@@ -19,15 +19,9 @@ interface Row {
   imports: [DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h1>High Scorers</h1>
-    <p class="muted">Individual-event points (relays score to the team, not the swimmer).</p>
+    <h1>{{ div.label() }} — High Scorers</h1>
+    <p class="muted">Individual-event points in the {{ div.label() }} competition (relays score to the team, not the swimmer).</p>
     <div class="filters">
-      <label>Rank by
-        <select (change)="metric.set($any($event.target).value)">
-          <option value="champ">Champ</option>
-          <option value="open">Open</option>
-        </select>
-      </label>
       <label>Team
         <select (change)="team.set($any($event.target).value)">
           <option value="">All</option>
@@ -46,12 +40,12 @@ interface Row {
         </select>
       </label>
     </div>
-    <app-data-table [columns]="columns()" [rows]="rows()" [initialSort]="{ key: metric(), dir: 'desc' }" searchPlaceholder="Search names…" />
+    <app-data-table [columns]="columns()" [rows]="rows()" [initialSort]="{ key: 'points', dir: 'desc' }" searchPlaceholder="Search names…" />
   `,
 })
 export class HighScorers {
   private data = inject(DataService);
-  metric = signal<'champ' | 'open'>('champ');
+  protected div = inject(DivisionService);
   team = signal('');
   gender = signal('');
   age = signal('');
@@ -61,28 +55,27 @@ export class HighScorers {
 
   columns = computed<Column<Row>[]>(() => [
     { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
-    { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => ['/swimmers', r.id] },
+    { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => this.div.link('swimmers', r.id) },
     { key: 'team', header: 'Team', value: (r) => r.team },
     { key: 'gender', header: 'G', value: (r) => r.gender, align: 'center' },
     { key: 'age', header: 'Age', value: (r) => r.age, numeric: true },
-    { key: 'champ', header: 'Champ', value: (r) => r.champ, numeric: true },
-    { key: 'open', header: 'Open', value: (r) => r.open, numeric: true },
+    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
   ]);
 
   rows = computed<Row[]>(() => {
     const d = this.data.data();
     const sb = this.data.scoreBook();
     if (!d || !sb) return [];
+    const k = this.div.key();
     const swById = this.data.swimmerById();
-    const metric = this.metric();
     const filtered = sb.swimmers
       .map((s) => ({ score: s, sw: swById.get(s.swimmerId) }))
       .filter(({ sw }) => sw &&
         (!this.team() || String(sw.team_id) === this.team()) &&
         (!this.gender() || sw.gender === this.gender()) &&
         (!this.age() || String(sw.age) === this.age()))
-      .filter(({ score }) => score[metric] > 0)
-      .sort((a, b) => b.score[metric] - a.score[metric]);
+      .filter(({ score }) => score[k] > 0)
+      .sort((a, b) => b.score[k] - a.score[k]);
     return filtered.map(({ score, sw }, i) => ({
       rank: i + 1,
       id: score.swimmerId,
@@ -90,8 +83,7 @@ export class HighScorers {
       team: this.data.teamCode(sw!.team_id),
       gender: sw!.gender,
       age: sw!.age,
-      champ: round(score.champ),
-      open: round(score.open),
+      points: round(score[k]),
     }));
   });
 }

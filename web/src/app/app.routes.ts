@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [
+// Routes shared by both "meets" (Championship and Open). The active division is the
+// first URL segment; DivisionService reads it.
+const divisionRoutes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'scores' },
   { path: 'scores', loadComponent: () => import('./features/scores/scores').then((m) => m.Scores), title: 'Standings' },
   { path: 'teams', loadComponent: () => import('./features/teams/teams').then((m) => m.Teams), title: 'Teams' },
@@ -11,5 +13,11 @@ export const routes: Routes = [
   { path: 'events/:id', loadComponent: () => import('./features/events/event-detail').then((m) => m.EventDetail), title: 'Event' },
   { path: 'high-scorers', loadComponent: () => import('./features/high-scorers/high-scorers').then((m) => m.HighScorers), title: 'High Scorers' },
   { path: 'improvements', loadComponent: () => import('./features/improvements/improvements').then((m) => m.Improvements), title: 'Improvements' },
-  { path: '**', redirectTo: 'scores' },
+];
+
+export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'championship/scores' },
+  { path: 'championship', children: divisionRoutes },
+  { path: 'open', children: divisionRoutes },
+  { path: '**', redirectTo: 'championship/scores' },
 ];
