@@ -1,0 +1,13 @@
+{
+  "name": "meet-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Parse HY-TEK Meet Manager result pages into a normalized SQLite database.",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "parse": "node parse_meet.js"
+  }
+}
