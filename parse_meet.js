@@ -153,21 +153,29 @@ function parseIndex(dir) {
   return { meet, sessions, fileMap };
 }
 
-// Parse the three-line page header for facility/location/report timestamp.
+// Parse the page header for facility/location/report timestamp. The <pre> block
+// starts with a newline, so the header line is not necessarily lines[0]; scan for it.
 function parseHeader(lines) {
   const out = { facility: null, location: null, report_at: null };
-  const first = lines[0] || '';
-  const fm = first.match(/^\s*(.+?)\s*-\s*Site License\s+(\d{1,2}\/\d{1,2}\/\d{4})\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
+  const licLine = lines.find((l) => /Site License/i.test(l)) || '';
+  const fm = licLine.match(/^\s*(.+?)\s*-\s*Site License\s+(\d{1,2}\/\d{1,2}\/\d{4})\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
   if (fm) {
     out.facility = fm[1].trim();
     const d = toIsoDate(fm[2]);
     const t = to24hTime(fm[3]);
     out.report_at = d && t ? `${d}T${t}` : d;
+  } else {
+    const f2 = licLine.match(/^\s*(.+?)\s*-\s*Site License/i);
+    if (f2) out.facility = f2[1].trim();
   }
-  // Location line is the last non-empty of the first few header lines.
-  for (let i = 2; i >= 0; i--) {
-    const s = (lines[i] || '').trim();
-    if (s && !/Site License|City Meet|Last Completed|=/.test(s)) { out.location = s; break; }
+  // Location: the first centered non-empty line that isn't the license/meet/divider
+  // line (in this data it repeats the facility name).
+  for (const l of lines) {
+    const s = l.trim();
+    if (s && !/Site License|City Meet|Last Completed|Psych|Program|=|Event\s+\d+/i.test(s) && !/\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+      out.location = s;
+      break;
+    }
   }
   return out;
 }

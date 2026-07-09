@@ -1,0 +1,101 @@
+/* Global design system */
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #273449;
+  --border: #334155;
+  --border-soft: #26324a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-2: #818cf8;
+  --good: #34d399;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --chip: #334155;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+a { color: var(--accent); }
+
+h1, h2, h3 { font-weight: 650; line-height: 1.2; }
+h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 .6rem; }
+h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .6rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 20; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: .6rem; }
+.logo { font-size: 1.5rem; }
+.meet-name { font-weight: 700; }
+.meet-sub { font-size: .75rem; color: var(--muted); }
+.nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+.nav a {
+  padding: .4rem .7rem; border-radius: 8px; text-decoration: none; color: var(--muted);
+  font-size: .875rem; font-weight: 500;
+}
+.nav a:hover { background: var(--surface-2); color: var(--text); }
+.nav a.active { background: var(--accent); color: #04283a; font-weight: 650; }
+
+.content { padding: 1.25rem 1.5rem 4rem; max-width: 1280px; margin: 0 auto; }
+.state { padding: 3rem; text-align: center; color: var(--muted); }
+.state.error { color: var(--bad); }
+
+/* Cards / layout helpers */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+.row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.grow { flex: 1 1 auto; }
+.muted { color: var(--muted); }
+.mono { font-variant-numeric: tabular-nums; }
+
+/* Filter controls */
+.filters { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .25rem 0 1rem; }
+.filters label { display: flex; flex-direction: column; font-size: .7rem; color: var(--muted); gap: .15rem; }
+.filters select, .filters input {
+  padding: .4rem .55rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font-size: .85rem; min-width: 120px;
+}
+
+/* Chips / badges */
+.chip { display: inline-block; padding: .1rem .5rem; border-radius: 999px; background: var(--chip); font-size: .72rem; color: var(--text); }
+.chip.champ { background: #1e3a5f; color: #7dd3fc; }
+.chip.open { background: #3b2f5f; color: #c4b5fd; }
+.pos { color: var(--good); }
+.neg { color: var(--bad); }
+
+/* Tabs */
+.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; flex-wrap: wrap; }
+.tabs button {
+  background: none; border: none; color: var(--muted); padding: .5rem .8rem; cursor: pointer;
+  border-bottom: 2px solid transparent; font-size: .9rem;
+}
+.tabs button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* Standings bar */
+.bar-wrap { display: flex; align-items: center; gap: .5rem; }
+.bar { height: 8px; border-radius: 4px; background: var(--accent); min-width: 2px; }
+
+/* Simple stat blocks */
+.stats { display: flex; flex-wrap: wrap; gap: 1rem; margin: .5rem 0 1rem; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .75rem 1rem; min-width: 130px; }
+.stat .n { font-size: 1.4rem; font-weight: 700; }
+.stat .l { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+table.plain { width: 100%; border-collapse: collapse; font-size: .875rem; }
+table.plain th, table.plain td { padding: .45rem .7rem; border-bottom: 1px solid var(--border-soft); text-align: left; }
+table.plain th { color: var(--muted); font-weight: 600; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
