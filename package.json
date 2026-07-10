@@ -8,6 +8,7 @@
     "node": ">=22.5"
   },
   "scripts": {
+    "test": "node --test",
     "refresh": "node refresh.js",
     "scrape": "node scrape.js",
     "parse": "node parse_meet.js",

@@ -492,16 +492,13 @@ function warnLikelyDuplicateTeams(db, meetId) {
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// Loading / main
 // ---------------------------------------------------------------------------
 
-function main() {
-  const dir = process.argv[2];
-  const dbPath = process.argv[3] || 'meets.db';
-  if (!dir) {
-    console.error('Usage: node parse_meet.js <results/DIR> [db-path]');
-    process.exit(1);
-  }
+// Load one scraped meet directory into the database (idempotent per meet).
+// Returns { meetId, code, meetName, tally } — meetId is null when the directory
+// held no results pages (the meet row is rolled back).
+function loadMeet(dir, dbPath) {
   const code = path.basename(dir.replace(/[/\\]+$/, ''));
 
   const db = new DatabaseSync(dbPath);
@@ -558,9 +555,8 @@ function main() {
 
   if (tally.parsed === 0) {
     db.prepare('DELETE FROM meet WHERE code = ?').run(code);
-    console.error(`No results pages found in ${dir} (skipped ${tally.skipped} psych/empty files). Nothing loaded.`);
     db.close();
-    process.exit(2);
+    return { meetId: null, code, meetName: meet.name, tally };
   }
 
   const count = (t) => db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c;
@@ -571,6 +567,32 @@ function main() {
   }
   warnLikelyDuplicateTeams(db, meetId);
   db.close();
+  return { meetId, code, meetName: meet.name, tally };
 }
 
-main();
+function main() {
+  const dir = process.argv[2];
+  const dbPath = process.argv[3] || 'meets.db';
+  if (!dir) {
+    console.error('Usage: node parse_meet.js <results/DIR> [db-path]');
+    process.exit(1);
+  }
+  const { meetId, tally } = loadMeet(dir, dbPath);
+  if (meetId == null) {
+    console.error(`No results pages found in ${dir} (skipped ${tally.skipped} psych/empty files). Nothing loaded.`);
+    process.exit(2);
+  }
+}
+
+if (require.main === module) main();
+
+module.exports = {
+  timeToCs,
+  splitName,
+  normalizeAgeLabel,
+  parseAgeGroup,
+  parseEventTitle,
+  parseTimeCells,
+  resolveTeamAlias,
+  loadMeet,
+};
