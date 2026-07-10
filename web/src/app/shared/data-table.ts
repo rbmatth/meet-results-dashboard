@@ -25,6 +25,8 @@ export interface Column<T = any> {
   cellClass?: (row: T) => string | null;
   numeric?: boolean;
   align?: 'left' | 'right' | 'center';
+  /** Direction applied the first time this column is sorted by (default 'asc'). */
+  defaultDir?: 'asc' | 'desc';
 }
 
 // Custom cell renderer for one column, matched by column key:
@@ -153,7 +155,15 @@ export class DataTable<T = any> {
     const col = cols.find((c) => c.key === key);
     if (col) {
       const mul = dir === 'asc' ? 1 : -1;
-      rows = [...rows].sort((a, b) => mul * compare(col.value(a), col.value(b)));
+      rows = [...rows].sort((a, b) => {
+        const va = col.value(a);
+        const vb = col.value(b);
+        // Missing values (DQ/NS/unswum, etc.) always sort last, independent of direction.
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        return mul * compare(va, vb);
+      });
     }
     return rows;
   });
@@ -168,17 +178,15 @@ export class DataTable<T = any> {
     if (this.effectiveSort().key === key) {
       this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
     } else {
+      const col = this.columns().find((c) => c.key === key);
       this.sortKey.set(key);
-      this.sortDir.set('asc');
+      this.sortDir.set(col?.defaultDir ?? 'asc');
     }
-    this.sortKey.set(key);
   }
 }
 
-function compare(a: string | number | null, b: string | number | null): number {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
+// Compares two non-null values; null handling (always-last) happens in the caller.
+function compare(a: string | number, b: string | number): number {
   if (typeof a === 'number' && typeof b === 'number') return a - b;
   return String(a).localeCompare(String(b), undefined, { numeric: true });
 }

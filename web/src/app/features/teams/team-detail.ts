@@ -122,7 +122,7 @@ export class TeamDetail {
     return [
       { key: 'gender', header: 'Gender', value: (g) => g.gender },
       { key: 'ageGroup', header: 'Age group', value: (g) => g.ageGroup },
-      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true },
+      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true, defaultDir: 'desc' },
     ];
   }
 
@@ -130,7 +130,7 @@ export class TeamDetail {
     return [
       { key: 'rank', header: '#', value: (s) => s.rank, numeric: true },
       { key: 'name', header: 'Name', value: (s) => s.name, link: (s) => this.div.link('swimmers', s.id) },
-      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true },
+      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true, defaultDir: 'desc' },
     ];
   }
 

@@ -35,7 +35,8 @@ interface Swim {
         @if (s.age != null) { <span class="chip">Age {{ s.age }}</span> }
       </p>
       <div class="stats">
-        <div class="stat"><div class="n">{{ score()?.[div.key()] ?? 0 }}</div><div class="l">{{ div.label() }} points</div></div>
+        <div class="stat"><div class="n">{{ score()?.champ ?? 0 }}</div><div class="l">Championship points</div></div>
+        <div class="stat"><div class="n">{{ score()?.open ?? 0 }}</div><div class="l">Open points</div></div>
         <div class="stat"><div class="n">{{ swims().length }}</div><div class="l">Swims (all)</div></div>
       </div>
       <h2>Swims</h2>
@@ -86,15 +87,15 @@ export class SwimmerDetail {
     { key: 'division', header: 'Div', value: (s) => s.division },
     { key: 'round', header: 'Round', value: (s) => s.round },
     { key: 'heat', header: 'Heat', value: (s) => s.result.heat_group },
-    { key: 'seed', header: 'Seed', value: (s) => s.result.seed_cs ?? 0, display: (s) => formatCs(s.result.seed_cs), numeric: true },
-    { key: 'time', header: 'Time', value: (s) => s.result.time_cs ?? 0, display: (s) => s.result.time_code || formatCs(s.result.time_cs), numeric: true },
-    { key: 'place', header: 'Place', value: (s) => s.result.place ?? 0, numeric: true },
+    { key: 'seed', header: 'Seed', value: (s) => s.result.seed_cs, display: (s) => formatCs(s.result.seed_cs), numeric: true },
+    { key: 'time', header: 'Time', value: (s) => s.result.time_cs, display: (s) => s.result.time_code || formatCs(s.result.time_cs), numeric: true },
+    { key: 'place', header: 'Place', value: (s) => s.result.place, numeric: true },
     {
-      key: 'drop', header: 'Drop', value: (s) => s.dropCs ?? 0, numeric: true,
+      key: 'drop', header: 'Drop', value: (s) => s.dropCs, numeric: true, defaultDir: 'desc',
       display: (s) => formatDropCs(s.dropCs),
       cellClass: (s) => ((s.dropCs ?? 0) > 0 ? 'pos' : (s.dropCs ?? 0) < 0 ? 'neg' : null),
     },
-    { key: 'points', header: 'Pts', value: (s) => s.points ?? 0, numeric: true },
+    { key: 'points', header: 'Pts', value: (s) => s.points, numeric: true, defaultDir: 'desc' },
   ];
 }
 

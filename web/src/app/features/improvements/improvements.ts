@@ -53,7 +53,7 @@ export class Improvements {
     { key: 'event', header: 'Event', value: (r) => r.event },
     { key: 'seedCs', header: 'Seed', value: (r) => r.seedCs, display: (r) => formatCs(r.seedCs), numeric: true },
     { key: 'timeCs', header: 'Time', value: (r) => r.timeCs, display: (r) => formatCs(r.timeCs), numeric: true },
-    { key: 'dropCs', header: 'Drop', value: (r) => r.dropCs, display: (r) => formatDropCs(r.dropCs), numeric: true },
+    { key: 'dropCs', header: 'Drop', value: (r) => r.dropCs, display: (r) => formatDropCs(r.dropCs), numeric: true, defaultDir: 'desc' },
   ]);
 
   rows = computed<Row[]>(() => {

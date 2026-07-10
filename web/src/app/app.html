@@ -2,9 +2,9 @@
   <div class="brand">
     <span class="logo">🏊</span>
     <div>
-      <select class="meet-select" (change)="div.switchMeet($any($event.target).value)">
+      <select class="meet-select" [value]="div.meet()" (change)="div.switchMeet($any($event.target).value)">
         @for (m of div.meets(); track m.code) {
-          <option [value]="m.code" [selected]="m.code === div.meet()">{{ m.name }}</option>
+          <option [value]="m.code">{{ m.name }}</option>
         }
       </select>
       @if (data.data()?.meet; as m) {

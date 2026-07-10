@@ -143,30 +143,30 @@ export class EventDetail {
 
   relayColumns(): Column<RelayRow>[] {
     return [
-      { key: 'place', header: 'Pl', value: (r) => r.place ?? 0, numeric: true },
+      { key: 'place', header: 'Pl', value: (r) => r.place, numeric: true },
       { key: 'teamCode', header: 'Team', value: (r) => r.teamCode, display: (r) => `${r.teamCode} '${r.letter}'`, link: (r) => this.div.link('teams', r.result.team_id ?? 0) },
-      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime ?? 0, display: (r) => formatCs(r.seedTime), numeric: true },
-      { key: 'time', header: 'Time', value: (r) => r.time ?? 0, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
-      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true },
+      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime, display: (r) => formatCs(r.seedTime), numeric: true },
+      { key: 'time', header: 'Time', value: (r) => r.time, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
+      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
       { key: 'legsDisplay', header: 'Swimmers & splits', value: (r) => r.legsDisplay, display: (r) => r.legsDisplay + (r.splitsDisplay ? `\n${r.splitsDisplay}` : '') },
     ];
   }
 
   individualColumns(): Column<IndividualRow>[] {
     return [
-      { key: 'place', header: 'Pl', value: (r) => r.place ?? 0, numeric: true },
+      { key: 'place', header: 'Pl', value: (r) => r.place, numeric: true },
       { key: 'heat', header: 'Heat', value: (r) => r.heat },
       { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => this.div.link('swimmers', r.result.swimmer_id ?? 0) },
       { key: 'teamCode', header: 'Team', value: (r) => r.teamCode, link: (r) => this.div.link('teams', r.result.team_id ?? 0) },
-      { key: 'age', header: 'Age', value: (r) => r.age ?? 0, numeric: true },
-      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime ?? 0, display: (r) => formatCs(r.seedTime), numeric: true },
-      { key: 'time', header: 'Time', value: (r) => r.time ?? 0, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
+      { key: 'age', header: 'Age', value: (r) => r.age, numeric: true },
+      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime, display: (r) => formatCs(r.seedTime), numeric: true },
+      { key: 'time', header: 'Time', value: (r) => r.time, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
       {
-        key: 'drop', header: 'Drop', value: (r) => r.drop ?? 0, numeric: true,
+        key: 'drop', header: 'Drop', value: (r) => r.drop, numeric: true, defaultDir: 'desc',
         display: (r) => formatDropCs(r.drop),
         cellClass: (r) => ((r.drop ?? 0) > 0 ? 'pos' : (r.drop ?? 0) < 0 ? 'neg' : null),
       },
-      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true },
+      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
     ];
   }
 }

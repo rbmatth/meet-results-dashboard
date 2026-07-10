@@ -32,10 +32,10 @@ export class Teams {
   columns = computed<Column<Row>[]>(() => [
     { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.id) },
     { key: 'name', header: 'Name', value: (r) => r.name },
-    { key: 'swimmers', header: 'Swimmers', value: (r) => r.swimmers, numeric: true },
-    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
-    { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
-    { key: 'delta', header: 'Δ vs seed', value: (r) => r.delta, numeric: true },
+    { key: 'swimmers', header: 'Swimmers', value: (r) => r.swimmers, numeric: true, defaultDir: 'desc' },
+    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
+    { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true, defaultDir: 'desc' },
+    { key: 'delta', header: 'Δ vs seed', value: (r) => r.delta, numeric: true, defaultDir: 'desc' },
   ]);
 
   rows = computed<Row[]>(() => {

@@ -59,7 +59,7 @@ export class HighScorers {
     { key: 'team', header: 'Team', value: (r) => r.team },
     { key: 'gender', header: 'G', value: (r) => r.gender, align: 'center' },
     { key: 'age', header: 'Age', value: (r) => r.age, numeric: true },
-    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
+    { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
   ]);
 
   rows = computed<Row[]>(() => {

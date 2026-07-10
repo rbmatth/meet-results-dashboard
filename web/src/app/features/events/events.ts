@@ -65,7 +65,7 @@ export class Events {
     { key: 'distance', header: 'Dist', value: (r) => r.distance, numeric: true },
     { key: 'stroke', header: 'Stroke', value: (r) => r.stroke },
     { key: 'type', header: 'Type', value: (r) => r.type },
-    { key: 'entries', header: 'Entries', value: (r) => r.entries, numeric: true },
+    { key: 'entries', header: 'Entries', value: (r) => r.entries, numeric: true, defaultDir: 'desc' },
   ]);
 
   rows = computed<Row[]>(() => {

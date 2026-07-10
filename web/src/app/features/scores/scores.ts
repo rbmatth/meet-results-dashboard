@@ -136,20 +136,26 @@ export class Scores {
     return { key: 'rank', dir: 'asc' as const };
   }
 
-  // Events whose deciding round has placed results — i.e. actually scored so far.
-  // (Events not yet in the scraped data at all can't be counted, hence "listed".)
+  // Events (in the active division) whose deciding round has placed results — i.e.
+  // actually scored so far. (Events not yet in the scraped data at all can't be
+  // counted, hence "listed".)
   scoredEventCount = computed(() => {
     const d = this.data.data();
     if (!d) return 0;
+    const division = this.div.division();
     const evById = this.data.eventById();
     const decided = new Set<number>();
     for (const r of d.results) {
       const ev = evById.get(r.event_id);
-      if (ev && r.round_type === decidingRound(ev.division) && r.place != null) decided.add(r.event_id);
+      if (ev && ev.division === division && r.round_type === decidingRound(ev.division) && r.place != null) {
+        decided.add(r.event_id);
+      }
     }
     return decided.size;
   });
-  totalEventCount = computed(() => this.data.data()?.events.length ?? 0);
+  totalEventCount = computed(
+    () => (this.data.data()?.events ?? []).filter((e) => e.division === this.div.division()).length,
+  );
 
   standingsRows = computed<StandingsRow[]>(() =>
     this.standings().map((row, i) => ({
@@ -181,11 +187,11 @@ export class Scores {
     return [
       { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
       { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.teamId) },
-      { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
+      { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
       { key: 'pct', header: '', value: (r) => r.pct },
-      { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
+      { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true, defaultDir: 'desc' },
       {
-        key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, numeric: true,
+        key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, numeric: true, defaultDir: 'desc',
         display: (r) => this.signed(r.delta),
         cellClass: (r) => (r.delta > 0 ? 'pos' : r.delta < 0 ? 'neg' : null),
       },
@@ -196,7 +202,7 @@ export class Scores {
     return [
       { key: 'rank', header: '#', value: (g) => g.rank, numeric: true },
       { key: 'code', header: 'Team', value: (g) => g.code, link: (g) => this.div.link('teams', g.teamId) },
-      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true },
+      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true, defaultDir: 'desc' },
     ];
   }
 
@@ -205,7 +211,7 @@ export class Scores {
       { key: 'rank', header: '#', value: (s) => s.rank, numeric: true },
       { key: 'name', header: 'Name', value: (s) => s.name, link: (s) => this.div.link('swimmers', s.id) },
       { key: 'team', header: 'Team', value: (s) => s.team },
-      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true },
+      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true, defaultDir: 'desc' },
     ];
   }
 }
