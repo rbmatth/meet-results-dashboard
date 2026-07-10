@@ -20,16 +20,18 @@
     </div>
   </div>
 
-  <div class="division-switch">
-    <a [routerLink]="div.otherRoute('CHAMP')" [class.active]="div.division() === 'CHAMP'">Championship</a>
-    <a [routerLink]="div.otherRoute('OPEN')" [class.active]="div.division() === 'OPEN'">Open</a>
-  </div>
+  <div class="topbar-nav">
+    <div class="division-switch">
+      <a [routerLink]="div.otherRoute('CHAMP')" [class.active]="div.division() === 'CHAMP'">Championship</a>
+      <a [routerLink]="div.otherRoute('OPEN')" [class.active]="div.division() === 'OPEN'">Open</a>
+    </div>
 
-  <nav class="nav">
-    @for (item of nav(); track item.seg) {
-      <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
-    }
-  </nav>
+    <nav class="nav">
+      @for (item of nav(); track item.seg) {
+        <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
+      }
+    </nav>
+  </div>
 
   <app-notifications-bell />
 

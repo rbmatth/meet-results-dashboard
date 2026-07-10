@@ -90,6 +90,8 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 .nav a:hover { background: var(--surface-2); color: var(--text); }
 .nav a.active { background: var(--accent); color: #04283a; font-weight: 650; }
 
+.topbar-nav { display: contents; }
+
 .division-switch { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
 .division-switch a {
   padding: .35rem .9rem; border-radius: 999px; text-decoration: none; color: var(--muted);
@@ -155,3 +157,33 @@ table.plain { width: 100%; border-collapse: collapse; font-size: .875rem; }
 table.plain th, table.plain td { padding: .45rem .7rem; border-bottom: 1px solid var(--border-soft); text-align: left; }
 table.plain th { color: var(--muted); font-weight: 600; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Mobile: stack the topbar into two rows (brand/bell/theme, then a scrollable strip of
+   the division switch + main nav) instead of letting five flex children wrap ad hoc,
+   and grow touch targets / inputs to comfortable phone sizes. */
+@media (max-width: 640px) {
+  .topbar { padding: .5rem .75rem; gap: .5rem; justify-content: flex-start; }
+  // Bounding brand's width (rather than just min-width: 0) matters: a flex item
+  // containing wrappable text is sized by its *unwrapped* preferred width for the
+  // purposes of deciding what fits on a line, even though it visually wraps down to
+  // fewer/shorter lines once rendered — without this cap, the long meet-sub line
+  // pushes bell/theme-toggle onto their own near-empty row instead of sharing row one.
+  .brand { min-width: 0; max-width: calc(100% - 6.5rem); margin-right: auto; }
+  .meet-select { max-width: 100%; }
+
+  .topbar-nav {
+    display: flex; flex: 1 1 100%; order: 3; gap: .5rem; align-items: center;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: .15rem;
+  }
+  .division-switch { flex: 0 0 auto; }
+  .nav { flex-wrap: nowrap; flex: 0 0 auto; }
+  .nav a { flex: 0 0 auto; padding: .55rem .8rem; }
+  .division-switch a { padding: .5rem 1rem; }
+
+  .theme-toggle, .notif-bell { width: 2.5rem; height: 2.5rem; font-size: 1.15rem; }
+
+  .content { padding: .85rem 1rem 3rem; }
+
+  .dt-toolbar { flex-wrap: wrap; }
+  .dt-search { flex: 1 1 100%; }
+}
