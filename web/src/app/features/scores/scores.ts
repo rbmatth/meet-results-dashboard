@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
-import { DataTable, Column } from '../../shared/data-table';
+import { decidingRound } from '../../core/scoring';
+import { DataTable, DataTableCellDef, Column } from '../../shared/data-table';
 
 interface StandingsRow {
   rank: number;
@@ -32,13 +33,22 @@ interface TopScorerRow {
 @Component({
   selector: 'app-scores',
   standalone: true,
-  imports: [RouterLink, DataTable],
+  imports: [RouterLink, DataTable, DataTableCellDef],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>{{ div.label() }} - Team Standings</h1>
     <p class="muted">Points are the {{ div.label() }} competition only; relays score 2x individual. Predicted ranks each event by seed time.</p>
+    @if (scoredEventCount() < totalEventCount()) {
+      <p class="banner">Partial results: {{ scoredEventCount() }} of {{ totalEventCount() }} listed events scored so far.</p>
+    }
 
-    <app-data-table [columns]="standingsColumns()" [rows]="standingsRows()" [initialSort]="rankSort()" searchPlaceholder="Search teams..." />
+    <app-data-table [columns]="standingsColumns()" [rows]="standingsRows()" [initialSort]="rankSort()" searchPlaceholder="Search teams...">
+      <ng-template dtCell="pct" let-row>
+        <div class="bar-wrap" style="width: clamp(120px, 30vw, 320px)">
+          <span class="bar" [style.width.%]="row.pct"></span>
+        </div>
+      </ng-template>
+    </app-data-table>
 
     <h2>Standings within a division (gender &amp; age group)</h2>
     <div class="filters">
@@ -58,6 +68,9 @@ interface TopScorerRow {
     <h2>Top individual scorers</h2>
     <app-data-table [columns]="topScorersColumns()" [rows]="topScorersRows()" [initialSort]="rankSort()" searchPlaceholder="Search swimmers..." />
   `,
+  styles: [`
+    .banner { padding: .5rem .8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--muted); font-size: .85rem; }
+  `],
 })
 export class Scores {
   private data = inject(DataService);
@@ -124,6 +137,21 @@ export class Scores {
     return { key: 'rank', dir: 'asc' as const };
   }
 
+  // Events whose deciding round has placed results — i.e. actually scored so far.
+  // (Events not yet in the scraped data at all can't be counted, hence "listed".)
+  scoredEventCount = computed(() => {
+    const d = this.data.data();
+    if (!d) return 0;
+    const evById = this.data.eventById();
+    const decided = new Set<number>();
+    for (const r of d.results) {
+      const ev = evById.get(r.event_id);
+      if (ev && r.round_type === decidingRound(ev.division) && r.place != null) decided.add(r.event_id);
+    }
+    return decided.size;
+  });
+  totalEventCount = computed(() => this.data.data()?.events.length ?? 0);
+
   standingsRows = computed<StandingsRow[]>(() =>
     this.standings().map((row, i) => ({
       rank: i + 1,
@@ -155,9 +183,13 @@ export class Scores {
       { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
       { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.teamId) },
       { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
-      { key: 'pct', header: '', value: (r) => r.pct, display: (r) => '#'.repeat(Math.round(r.pct / 10)) },
+      { key: 'pct', header: '', value: (r) => r.pct },
       { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
-      { key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, display: (r) => this.signed(r.delta), numeric: true },
+      {
+        key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, numeric: true,
+        display: (r) => this.signed(r.delta),
+        cellClass: (r) => (r.delta > 0 ? 'pos' : r.delta < 0 ? 'neg' : null),
+      },
     ];
   }
 

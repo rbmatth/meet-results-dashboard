@@ -26,6 +26,7 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const db = new DatabaseSync(dbPath);
 const all = (sql, ...p) => db.prepare(sql).all(...p);
+const generatedAt = new Date().toISOString();
 
 const meets = all('SELECT meet_id, code, name, facility, location, start_date, end_date, course FROM meet ORDER BY start_date');
 const index = [];
@@ -119,13 +120,14 @@ for (const meet of meets) {
     meet: {
       code: meet.code, name: meet.name, facility: meet.facility, location: meet.location,
       start_date: meet.start_date, end_date: meet.end_date, course: meet.course,
+      generated_at: generatedAt,
     },
     teams, swimmers, events, results,
   };
 
   const file = path.join(outDir, `${meet.code}.json`);
   fs.writeFileSync(file, JSON.stringify(payload));
-  index.push({ code: meet.code, name: meet.name, start_date: meet.start_date, end_date: meet.end_date });
+  index.push({ code: meet.code, name: meet.name, start_date: meet.start_date, end_date: meet.end_date, generated_at: generatedAt });
   console.log(`Wrote ${file}  (teams=${teams.length} swimmers=${swimmers.length} events=${events.length} results=${results.length})`);
 }
 

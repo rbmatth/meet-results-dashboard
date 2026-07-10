@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Directive,
+  TemplateRef,
+  computed,
+  contentChildren,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 export interface Column<T = any> {
@@ -10,15 +21,27 @@ export interface Column<T = any> {
   display?: (row: T) => string;
   /** Optional routerLink target for the cell. */
   link?: (row: T) => (string | number)[] | null;
+  /** Optional extra CSS class(es) for the cell, e.g. pos/neg coloring. */
+  cellClass?: (row: T) => string | null;
   numeric?: boolean;
   align?: 'left' | 'right' | 'center';
+}
+
+// Custom cell renderer for one column, matched by column key:
+//   <app-data-table ...>
+//     <ng-template dtCell="pct" let-row> ...custom HTML for row... </ng-template>
+//   </app-data-table>
+@Directive({ selector: 'ng-template[dtCell]', standalone: true })
+export class DataTableCellDef {
+  readonly dtCell = input.required<string>();
+  readonly template = inject(TemplateRef);
 }
 
 // Generic sortable + text-filterable table driven by column definitions.
 @Component({
   selector: 'app-data-table',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dt-toolbar">
@@ -52,8 +75,14 @@ export interface Column<T = any> {
           @for (row of view(); track $index) {
             <tr>
               @for (col of columns(); track col.key) {
-                <td [class.num]="col.numeric || col.align === 'right'" [class.center]="col.align === 'center'">
-                  @if (col.link && col.link(row)) {
+                <td
+                  [class.num]="col.numeric || col.align === 'right'"
+                  [class.center]="col.align === 'center'"
+                  [class]="col.cellClass?.(row)"
+                >
+                  @if (cellTpl(col.key); as tpl) {
+                    <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row }" />
+                  } @else if (col.link && col.link(row)) {
                     <a [routerLink]="col.link(row)">{{ cell(col, row) }}</a>
                   } @else {
                     {{ cell(col, row) }}
@@ -91,6 +120,14 @@ export class DataTable<T = any> {
   readonly rows = input.required<T[]>();
   readonly initialSort = input<{ key: string; dir: 'asc' | 'desc' }>();
   readonly searchPlaceholder = input('Filter…');
+
+  private readonly cellDefs = contentChildren(DataTableCellDef);
+  private readonly cellTplByKey = computed(
+    () => new Map(this.cellDefs().map((d) => [d.dtCell(), d.template])),
+  );
+  cellTpl(key: string): TemplateRef<unknown> | undefined {
+    return this.cellTplByKey().get(key);
+  }
 
   readonly query = signal('');
   readonly sortKey = signal<string>('');

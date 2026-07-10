@@ -75,6 +75,8 @@ export interface MeetInfo {
   start_date: string | null;
   end_date: string | null;
   course: string | null;
+  /** ISO timestamp of the export that produced this payload. */
+  generated_at?: string;
 }
 
 export interface MeetData {
@@ -90,4 +92,5 @@ export interface MeetIndexEntry {
   name: string;
   start_date: string;
   end_date: string;
+  generated_at?: string;
 }

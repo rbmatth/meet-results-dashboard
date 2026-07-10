@@ -161,7 +161,11 @@ export class EventDetail {
       { key: 'age', header: 'Age', value: (r) => r.age ?? 0, numeric: true },
       { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime ?? 0, display: (r) => formatCs(r.seedTime), numeric: true },
       { key: 'time', header: 'Time', value: (r) => r.time ?? 0, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
-      { key: 'drop', header: 'Drop', value: (r) => r.drop ?? 0, display: (r) => formatDropCs(r.drop), numeric: true },
+      {
+        key: 'drop', header: 'Drop', value: (r) => r.drop ?? 0, numeric: true,
+        display: (r) => formatDropCs(r.drop),
+        cellClass: (r) => ((r.drop ?? 0) > 0 ? 'pos' : (r.drop ?? 0) < 0 ? 'neg' : null),
+      },
       { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true },
     ];
   }

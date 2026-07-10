@@ -89,7 +89,11 @@ export class SwimmerDetail {
     { key: 'seed', header: 'Seed', value: (s) => s.result.seed_cs ?? 0, display: (s) => formatCs(s.result.seed_cs), numeric: true },
     { key: 'time', header: 'Time', value: (s) => s.result.time_cs ?? 0, display: (s) => s.result.time_code || formatCs(s.result.time_cs), numeric: true },
     { key: 'place', header: 'Place', value: (s) => s.result.place ?? 0, numeric: true },
-    { key: 'drop', header: 'Drop', value: (s) => s.dropCs ?? 0, display: (s) => formatDropCs(s.dropCs), numeric: true },
+    {
+      key: 'drop', header: 'Drop', value: (s) => s.dropCs ?? 0, numeric: true,
+      display: (s) => formatDropCs(s.dropCs),
+      cellClass: (s) => ((s.dropCs ?? 0) > 0 ? 'pos' : (s.dropCs ?? 0) < 0 ? 'neg' : null),
+    },
     { key: 'points', header: 'Pts', value: (s) => s.points ?? 0, numeric: true },
   ];
 }
