@@ -10,6 +10,7 @@
   "scripts": {
     "test": "node --test",
     "refresh": "node refresh.js",
+    "refresh:loop": "node refresh-and-push.js",
     "scrape": "node scrape.js",
     "parse": "node parse_meet.js",
     "export": "node export_json.js",

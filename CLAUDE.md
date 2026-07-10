@@ -22,6 +22,7 @@ The three Node scripts and the Angular app are **separate projects** with separa
 ### Data pipeline (root, CommonJS, Node ≥ 22.5, zero npm deps — uses built-in `node:sqlite`)
 ```bash
 npm run refresh                               # scrape + parse + export in one step, with a delta summary
+npm run refresh:loop                          # refresh.js on an interval, git commit+push web/public/data on change
 node scrape.js 2026CSA                         # download a meet's pages into results/2026CSA
 node parse_meet.js results/2025CSA meets.db   # parse one meet dir into the DB (idempotent)
 node export_json.js meets.db web/public/data  # export all meets to JSON the SPA loads
@@ -34,6 +35,9 @@ re-fetched conditionally (If-Modified-Since + content compare) and the summary r
 new/changed/unchanged; `--skip-existing` skips fetches entirely, `--limit N` caps downloads,
 `--archive` writes a snapshot tarball into `archives/` (gitignored).
 `refresh.js` chains all three stages for one meet (default: newest dir under `results/`).
+`refresh-and-push.js` loops `refresh.js` on an interval (default 300s) and, when the
+exported JSON actually changed, commits + pushes `web/public/data` so the deployed
+GitHub Pages site picks it up — meant to be left running locally for a live meet.
 `parse_meet.js` exports its parsing internals for the test suite; keep new parsing logic
 covered by `test/parse_meet.test.js` (real-page fixtures under `test/fixtures/TESTCSA/`).
 Re-running `parse_meet.js` for a meet deletes its rows (FK cascade) and reloads — multiple
@@ -92,7 +96,10 @@ has the only meaningful test suite (`scoring.spec.ts`) — keep it covered.
 - **Standalone components only**, lazy-loaded per route via `loadComponent`.
 - `DataService` is the single data layer: loads JSON, builds lookup maps (`teamById`,
   `resultsByEvent`, etc.) as `computed`s, and exposes `scoreBook`. Feature components inject it
-  and derive view rows with `computed`.
+  and derive view rows with `computed`. It also polls `data/index.json` every 75s (browser
+  only, cache-busted) and re-fetches the active meet's JSON when its `generated_at` changes —
+  the only thing that keeps an already-open tab (and the notifications bell) live without a
+  manual reload; see `refresh-and-push.js` for the server-side half of this.
 - **`shared/data-table.ts` (`app-data-table`) is the standard table** — a generic sortable,
   text-filterable table driven by `Column<T>` definitions (`value` for sort/filter, optional
   `display`, `link`, `numeric`). Prefer it over hand-written `<table>` for any tabular view.
