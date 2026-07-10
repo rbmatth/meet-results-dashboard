@@ -111,10 +111,19 @@ function groupByEvent(results: Result[]): Map<number, Result[]> {
 
 // The round whose seed times represent every entrant (for seed-based prediction):
 // Champ individual -> PRELIM; Champ relay (no prelim) -> FINAL; Open -> TIMED_FINAL.
+// Falls back to an ENTRY round (psych-sheet entrants) when the event hasn't been
+// swum yet at all, so "predicted" includes not-yet-completed events too. Real rounds
+// are always preferred when present — ENTRY only exists on an event when no real
+// round was parsed for it (see parse_meet.js's parsePsychSheet).
 function entryRoundResults(eventResults: Result[], division: Division): Result[] {
-  if (division === 'OPEN') return eventResults.filter((r) => r.round_type === 'TIMED_FINAL');
-  const prelim = eventResults.filter((r) => r.round_type === 'PRELIM');
-  return prelim.length ? prelim : eventResults.filter((r) => r.round_type === 'FINAL');
+  const real =
+    division === 'OPEN'
+      ? eventResults.filter((r) => r.round_type === 'TIMED_FINAL')
+      : (() => {
+          const prelim = eventResults.filter((r) => r.round_type === 'PRELIM');
+          return prelim.length ? prelim : eventResults.filter((r) => r.round_type === 'FINAL');
+        })();
+  return real.length ? real : eventResults.filter((r) => r.round_type === 'ENTRY');
 }
 
 export function computeScoreBook(data: MeetData): ScoreBook {

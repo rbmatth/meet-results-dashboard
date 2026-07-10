@@ -85,12 +85,13 @@ export class EventDetail {
 
   blocks = computed<RoundBlock[]>(() => {
     const results = this.data.resultsByEvent().get(this.id()) ?? [];
-    const order: RoundType[] = ['FINAL', 'TIMED_FINAL', 'PRELIM'];
+    const order: RoundType[] = ['FINAL', 'TIMED_FINAL', 'PRELIM', 'ENTRY'];
     return order
       .map((type) => ({
         type,
-        label: type === 'PRELIM' ? 'Preliminaries' : type === 'TIMED_FINAL' ? 'Timed Final' : 'Finals',
-        results: results.filter((r) => r.round_type === type).sort(byPlace),
+        label: type === 'PRELIM' ? 'Preliminaries' : type === 'TIMED_FINAL' ? 'Timed Final' : type === 'ENTRY' ? 'Entries (not yet swum)' : 'Finals',
+        // ENTRY rows have no place yet — rank by seed time (fastest first) instead.
+        results: results.filter((r) => r.round_type === type).sort(type === 'ENTRY' ? bySeed : byPlace),
       }))
       .filter((b) => b.results.length > 0);
   });
@@ -176,4 +177,11 @@ function byPlace(a: Result, b: Result): number {
   if (a.place == null) return 1;
   if (b.place == null) return -1;
   return a.place - b.place;
+}
+
+function bySeed(a: Result, b: Result): number {
+  if (a.seed_cs == null && b.seed_cs == null) return 0;
+  if (a.seed_cs == null) return 1;
+  if (b.seed_cs == null) return -1;
+  return a.seed_cs - b.seed_cs;
 }

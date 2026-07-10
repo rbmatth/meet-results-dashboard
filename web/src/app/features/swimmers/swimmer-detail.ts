@@ -100,8 +100,8 @@ export class SwimmerDetail {
 }
 
 function roundLabel(rt: string): string {
-  return rt === 'PRELIM' ? 'Prelim' : rt === 'TIMED_FINAL' ? 'Timed Final' : 'Final';
+  return rt === 'PRELIM' ? 'Prelim' : rt === 'TIMED_FINAL' ? 'Timed Final' : rt === 'ENTRY' ? 'Entry' : 'Final';
 }
 function roundRank(label: string): number {
-  return label === 'Prelim' ? 0 : label === 'Timed Final' ? 1 : 2;
+  return label === 'Entry' ? -1 : label === 'Prelim' ? 0 : label === 'Timed Final' ? 1 : 2;
 }

@@ -119,6 +119,31 @@ describe('computeScoreBook', () => {
     expect(s).not.toHaveProperty('combined'); // never summed
   });
 
+  it('predicts an unswum event from its ENTRY (psych-sheet) round', () => {
+    // No PRELIM/FINAL at all for this event yet -> entryRoundResults must fall back
+    // to ENTRY so "predicted" includes events that haven't been swum.
+    const results = [
+      res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'ENTRY', team_id: 10, swimmer_id: 100, seed_cs: 3000 }),
+      res({ id: 2, event_id: 1, division: 'CHAMP', round_type: 'ENTRY', team_id: 20, swimmer_id: 200, seed_cs: 3100 }),
+    ];
+    const sb = computeScoreBook(meet([champEvent], results, [10, 20]));
+    expect(sb.teamsPredicted.find((t) => t.teamId === 10)!.champ).toBe(32); // faster seed
+    expect(sb.teamsPredicted.find((t) => t.teamId === 20)!.champ).toBe(28);
+    // ENTRY rows never have a place, so no actual points are ever awarded from them.
+    expect(sb.teams.length).toBe(0);
+  });
+
+  it('prefers a real round over ENTRY once the event has been swum', () => {
+    const results = [
+      res({ id: 1, event_id: 2, division: 'OPEN', round_type: 'ENTRY', team_id: 10, swimmer_id: 100, seed_cs: 3100 }),
+      res({ id: 2, event_id: 2, division: 'OPEN', round_type: 'TIMED_FINAL', team_id: 20, swimmer_id: 200, seed_cs: 3000, place: 1, time_cs: 2900 }),
+    ];
+    const sb = computeScoreBook(meet([openEvent], results, [10, 20]));
+    // Predicted uses the real TIMED_FINAL entrants only (team 20), not the stale ENTRY row.
+    expect(sb.teamsPredicted.find((t) => t.teamId === 20)!.open).toBe(11);
+    expect(sb.teamsPredicted.find((t) => t.teamId === 10)).toBeUndefined();
+  });
+
   it('computes improvement as seed minus achieved time', () => {
     const results = [
       res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'PRELIM', team_id: 10, swimmer_id: 100, seed_cs: 3100, time_cs: 3080 }),

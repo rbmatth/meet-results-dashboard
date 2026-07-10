@@ -74,13 +74,18 @@ CREATE TABLE IF NOT EXISTS event (
   UNIQUE (meet_id, event_number, age_group_label)
 );
 
--- A round of an event: prelims, finals, or a single timed final (Open/relay).
+-- A round of an event: prelims, finals, a single timed final (Open/relay), or an
+-- ENTRY round — a psych-sheet-sourced round for an event that hasn't been swum yet
+-- (seed time known, no place/finish). An ENTRY round is only created when no real
+-- round exists yet for the event; once real results appear, ENTRY is superseded (the
+-- loader reloads a meet from scratch each run, so this just means result files are
+-- read before psych sheets).
 -- The session that runs this round links here (prelims and finals differ).
 CREATE TABLE IF NOT EXISTS event_round (
   round_id             INTEGER PRIMARY KEY,
   event_id             INTEGER NOT NULL REFERENCES event(event_id) ON DELETE CASCADE,
   session_id           INTEGER REFERENCES session(session_id) ON DELETE SET NULL,
-  round_type           TEXT NOT NULL CHECK (round_type IN ('PRELIM', 'FINAL', 'TIMED_FINAL')),
+  round_type           TEXT NOT NULL CHECK (round_type IN ('PRELIM', 'FINAL', 'TIMED_FINAL', 'ENTRY')),
   source_file          TEXT,            -- "250710F004.htm"
   report_generated_at  TEXT,            -- ISO datetime from the page header
   UNIQUE (event_id, round_type)

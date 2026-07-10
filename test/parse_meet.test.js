@@ -100,8 +100,8 @@ describe('loadMeet (fixture meet end-to-end)', () => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'meet-test-'));
     dbPath = path.join(tmp, 'test.db');
     const res = loadMeet(fixtures, dbPath);
-    assert.equal(res.tally.parsed, 3, 'three results pages parse');
-    assert.equal(res.tally.skipped, 1, 'psych sheet is skipped');
+    assert.equal(res.tally.parsed, 6, 'six results/psych-sheet pages parse');
+    assert.equal(res.tally.skipped, 0);
     db = new DatabaseSync(dbPath);
   });
   after(() => {
@@ -116,9 +116,60 @@ describe('loadMeet (fixture meet end-to-end)', () => {
     assert.equal(m.start_date, '2025-07-10');
   });
 
-  test('psych sheet creates no event', () => {
-    assert.equal(db.prepare('SELECT COUNT(*) c FROM event WHERE event_number = 34').get().c, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) c FROM event').get().c, 4);
+  test('psych sheet creates an ENTRY round, not a real one', () => {
+    const ev = db.prepare('SELECT event_id FROM event WHERE event_number = 34').get();
+    assert.ok(ev, 'event 34 exists (created from the psych sheet)');
+    const round = db.prepare('SELECT round_type FROM event_round WHERE event_id = ?').get(ev.event_id);
+    assert.equal(round.round_type, 'ENTRY');
+  });
+
+  test('relay psych-sheet entrant resolves via full-name team alias, no place', () => {
+    const row = db.prepare(
+      `SELECT r.place, r.seed_time_cs, t.code FROM result r
+       JOIN relay rl ON rl.relay_id = r.relay_id
+       JOIN team t ON t.team_id = rl.team_id
+       JOIN event_round er ON er.round_id = r.round_id
+       JOIN event e ON e.event_id = er.event_id
+       WHERE e.event_number = 34 AND rl.relay_letter = 'A'
+       ORDER BY r.seed_time_cs LIMIT 1`,
+    ).get();
+    assert.equal(row.place, null);
+    assert.equal(row.seed_time_cs, 14361); // 2:23.61
+    assert.equal(row.code, 'LJST-NC'); // "Lake Jeanette Lightning-NC" -> alias.name match
+  });
+
+  test('relay psych-sheet legs are still parsed', () => {
+    const legs = db.prepare(
+      `SELECT l.leg_no, l.swimmer_name_raw name FROM relay_leg l
+       JOIN relay rl ON rl.relay_id = l.relay_id
+       JOIN result r ON r.relay_id = rl.relay_id
+       JOIN event_round er ON er.round_id = rl.round_id
+       JOIN event e ON e.event_id = er.event_id
+       WHERE e.event_number = 34 AND r.seed_time_cs = 14361 ORDER BY l.leg_no`,
+    ).all();
+    assert.equal(legs.length, 4);
+    assert.equal(legs[0].name, 'Sagen, Tanner');
+  });
+
+  test('individual psych-sheet entrant resolves via existing truncated-code alias', () => {
+    const row = db.prepare(
+      `SELECT s.full_name name, r.place, r.seed_time_cs, t.code FROM result r
+       JOIN swimmer s ON s.swimmer_id = r.swimmer_id
+       JOIN team t ON t.team_id = s.team_id
+       JOIN event_round er ON er.round_id = r.round_id
+       JOIN event e ON e.event_id = er.event_id
+       WHERE e.event_number = 124 AND s.last_name = 'Winegarner'`,
+    ).get();
+    assert.equal(row.place, null);
+    assert.equal(row.seed_time_cs, 5037); // 50.37
+    assert.equal(row.code, 'BUR-NC');
+  });
+
+  test('a psych sheet for an event that already has real results creates no extra round', () => {
+    const ev = db.prepare("SELECT event_id FROM event WHERE event_number = 32 AND age_group_label = '8&U'").get();
+    assert.ok(ev);
+    const rounds = db.prepare('SELECT round_type FROM event_round WHERE event_id = ?').all(ev.event_id);
+    assert.deepEqual(rounds.map((r) => r.round_type), ['FINAL'], 'no ENTRY round was added alongside the real FINAL');
   });
 
   test('a file with two embedded age-group blocks splits into two events', () => {

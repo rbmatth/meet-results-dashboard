@@ -259,6 +259,15 @@ function resolveTeamAlias(raw) {
     const len = Math.min(key.length, raw.length);
     if (len >= ALIAS_MIN_PREFIX && (key.startsWith(raw) || raw.startsWith(key))) return alias;
   }
+  // Relay psych-sheet entries use full, untruncated club names + an LSC suffix
+  // ("Rwd-NC", "Hamilton Lakes Hornets-NC") instead of the truncated codes/names
+  // above, and don't always match case ("Rwd" vs the "RWD" alias name). Fall back to
+  // a case-insensitive match against alias.name with any trailing "-XX" LSC suffix
+  // stripped from the raw string.
+  const bare = raw.replace(/-[A-Za-z]{2}$/, '').trim().toLowerCase();
+  for (const alias of Object.values(TEAM_ALIASES)) {
+    if (alias.name && alias.name.toLowerCase() === bare) return alias;
+  }
   return null;
 }
 
@@ -357,10 +366,12 @@ function parseEventFile(dir, fileName, ctx, store) {
   const html = fs.readFileSync(path.join(dir, fileName), 'utf8');
   const raw = preBody(html);
 
-  // Skip non-results pages a mid-meet scrape may contain: pre-meet Psych Sheets /
-  // Meet Programs (no places/finals/splits) and "not available" placeholders for
-  // events that haven't been swum. The results schema doesn't model these.
-  if (/Psych Sheet|Meet Program/i.test(raw)) return 'skipped-psych';
+  // A Psych Sheet is a pre-meet entry list (seed time, no place/finish) for an event
+  // that hasn't been swum yet — parse it into an ENTRY round so "predicted" points can
+  // include not-yet-swum events. Meet Programs carry no times at all and "not
+  // available" placeholders carry nothing; neither is modeled.
+  if (/Psych Sheet/i.test(raw)) return parsePsychSheet(dir, fileName, ctx, store);
+  if (/Meet Program/i.test(raw)) return 'skipped-psych';
   if (/not available/i.test(raw)) return 'skipped-empty';
 
   const lines = raw.split('\n');
@@ -380,6 +391,40 @@ function parseEventFile(dir, fileName, ctx, store) {
     const ev = parseEventTitle(titleLine);
     if (!ev) continue;
     parseEventBlock(ev, lines.slice(start, end), roundTypeFor(fileName, ev.division), sessionId, fileName, header, ctx, store);
+    parsedAny = true;
+  }
+  return parsedAny ? 'parsed' : 'skipped-notitle';
+}
+
+// A Psych Sheet lists entrants for an event that hasn't been swum: same row shape as
+// results (place-like entry number, name/team, one time value) but with no swum time
+// or place, so it feeds an ENTRY round via the same parseEventBlock row logic. Only
+// creates an ENTRY round for an event that doesn't already have a real round — since
+// files are read in (event_number, P-before-F) order and real result files are
+// processed first in the same pass, `ctx.eventIdByNumber` already holds any event that
+// has real data by the time its psych sheet (if any) is reached.
+function parsePsychSheet(dir, fileName, ctx, store) {
+  const html = fs.readFileSync(path.join(dir, fileName), 'utf8');
+  const raw = preBody(html);
+  const lines = raw.split('\n');
+  const header = parseHeader(lines);
+
+  const titleIdxs = titleLineIndexes(lines);
+  if (!titleIdxs.length) return 'skipped-notitle';
+
+  const mapping = ctx.fileMap.get(fileName) || {};
+  const sessionId = mapping.sessionLabel ? ctx.sessionIdByLabel.get(mapping.sessionLabel) : null;
+
+  let parsedAny = false;
+  for (let b = 0; b < titleIdxs.length; b++) {
+    const start = titleIdxs[b];
+    const end = b + 1 < titleIdxs.length ? titleIdxs[b + 1] : lines.length;
+    const titleLine = stripSpans(lines[start]).replace(/<\/?b>/g, '');
+    const ev = parseEventTitle(titleLine);
+    if (!ev) continue;
+    const eventKey = `${ev.event_number}|${ev.age_group_label}`;
+    if (ctx.eventIdByNumber.has(eventKey)) { parsedAny = true; continue; } // real round already exists
+    parseEventBlock(ev, lines.slice(start, end), 'ENTRY', sessionId, fileName, header, ctx, store);
     parsedAny = true;
   }
   return parsedAny ? 'parsed' : 'skipped-notitle';
@@ -428,7 +473,8 @@ function parseEventBlock(ev, lines, roundType, sessionId, fileName, header, ctx,
       const rel = clean.match(/^\s*(\d+|--)\s+(.+?)\s+'([A-Z0-9])'\s*(.*)$/);
       if (rel) {
         flushRelaySplits();
-        const place = rel[1] === '--' ? null : parseInt(rel[1], 10);
+        // ENTRY rows are psych-sheet entrants ranked by seed, not a real finish place.
+        const place = roundType === 'ENTRY' ? null : rel[1] === '--' ? null : parseInt(rel[1], 10);
         const teamId = store.teamId(rel[2].trim());
         const relayId = store.ps.relay.run(roundId, teamId, rel[3]).lastInsertRowid;
         const cells = parseTimeCells(rel[4]);
@@ -476,7 +522,8 @@ function parseEventBlock(ev, lines, roundType, sessionId, fileName, header, ctx,
       const firstIdx = cells.length ? cells[0].index : rest.length;
       const info = rest.slice(0, firstIdx).match(/^(.+?)\s+(\d{1,2})\s+(.+?)\s*$/);
       if (!info) continue;
-      const place = lead[1] === '--' ? null : parseInt(lead[1], 10);
+      // ENTRY rows are psych-sheet entrants ranked by seed, not a real finish place.
+      const place = roundType === 'ENTRY' ? null : lead[1] === '--' ? null : parseInt(lead[1], 10);
       const name = info[1].trim();
       const age = parseInt(info[2], 10);
       const teamCode = info[3].trim();
@@ -484,7 +531,8 @@ function parseEventBlock(ev, lines, roundType, sessionId, fileName, header, ctx,
       const swum = cells[1] || {};
       // In a FINAL file, non-qualifiers (the trailing prelim section) have no swum
       // time -> that swimmer already has a PRELIM result, so skip creating one here.
-      if (roundType !== 'PRELIM' && !swum.timeStr && !swum.code) continue;
+      // ENTRY rows never have a swum time at all — that's the point, not a reason to skip.
+      if (roundType !== 'PRELIM' && roundType !== 'ENTRY' && !swum.timeStr && !swum.code) continue;
       const swimmerId = store.swimmerId(name, teamCode, ev.gender, age);
       store.ps.result.run(roundId, swimmerId, null, place, heatGroup,
         seed.cs ?? null, seed.timeStr ?? null, swum.cs ?? null, swum.timeStr ?? (swum.code || null), swum.code ?? null);

@@ -1,7 +1,9 @@
 // TypeScript shapes mirroring the JSON emitted by export_json.js.
 
 export type Division = 'CHAMP' | 'OPEN';
-export type RoundType = 'PRELIM' | 'FINAL' | 'TIMED_FINAL';
+// ENTRY: a psych-sheet-sourced round for an event that hasn't been swum yet (seed
+// time known, no place/finish) — only present when no real round exists for the event.
+export type RoundType = 'PRELIM' | 'FINAL' | 'TIMED_FINAL' | 'ENTRY';
 export type Gender = 'M' | 'F' | 'X';
 
 export interface Team {
