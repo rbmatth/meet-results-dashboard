@@ -4,11 +4,12 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DataService } from './core/data.service';
 import { DivisionService } from './core/division.service';
 import { ThemeService } from './core/theme.service';
+import { NotificationsBell } from './shared/notifications-bell';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, DatePipe, NotificationsBell],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.scss',
