@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
 import { decidingRound } from '../../core/scoring';
@@ -33,7 +32,7 @@ interface TopScorerRow {
 @Component({
   selector: 'app-scores',
   standalone: true,
-  imports: [RouterLink, DataTable, DataTableCellDef],
+  imports: [DataTable, DataTableCellDef],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>{{ div.label() }} - Team Standings</h1>

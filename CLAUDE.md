@@ -21,15 +21,21 @@ The three Node scripts and the Angular app are **separate projects** with separa
 
 ### Data pipeline (root, CommonJS, Node ≥ 22.5, zero npm deps — uses built-in `node:sqlite`)
 ```bash
+npm run refresh                               # scrape + parse + export in one step, with a delta summary
 node scrape.js 2026CSA                         # download a meet's pages into results/2026CSA
 node parse_meet.js results/2025CSA meets.db   # parse one meet dir into the DB (idempotent)
 node export_json.js meets.db web/public/data  # export all meets to JSON the SPA loads
 npm run build:data                            # parse both meets + export in one step
+npm test                                      # parser tests (node:test + fixtures in test/)
 ```
 `scrape.js` discovers pages from the meet's `evtindex.htm` and writes directly into
-`results/<MEET>/` (dependency-free, Node ≥ 22 global `fetch`). It re-fetches by default;
-pass `--skip-existing` to keep files already on disk, or `--limit N` to cap downloads while
-testing. It replaced the old wget-based `scrape.sh`.
+`results/<MEET>/` (dependency-free, Node ≥ 22 global `fetch`). Existing pages are
+re-fetched conditionally (If-Modified-Since + content compare) and the summary reports
+new/changed/unchanged; `--skip-existing` skips fetches entirely, `--limit N` caps downloads,
+`--archive` writes a snapshot tarball into `archives/` (gitignored).
+`refresh.js` chains all three stages for one meet (default: newest dir under `results/`).
+`parse_meet.js` exports its parsing internals for the test suite; keep new parsing logic
+covered by `test/parse_meet.test.js` (real-page fixtures under `test/fixtures/TESTCSA/`).
 Re-running `parse_meet.js` for a meet deletes its rows (FK cascade) and reloads — multiple
 meets share one DB file. After changing source data, always re-run **both** parse and export;
 the SPA reads only the JSON, never the DB.
@@ -95,24 +101,18 @@ has the only meaningful test suite (`scoring.spec.ts`) — keep it covered.
 
 ## Deployment / hosting
 
-No deployment is configured yet — there is no CI, host config, SSR, or git remote. The app is a
-purely client-side SPA (`@angular/build:application`, no server bundle), so hosting it means
-serving static files:
+Hosted on **GitHub Pages** (repo `rbmatth/meet-manager`, public) via
+`.github/workflows/deploy.yml`: every push to `main` runs the parser tests + web tests,
+builds the SPA with `--base-href /meet-manager/`, copies `index.html` → `404.html` (the
+Pages SPA-fallback workaround for deep links), and deploys `web/dist/web/browser/`.
 
-- **Build output**: `npm run build` (in `web/`) emits to `web/dist/web/browser/` (default path;
-  `outputPath`/`baseHref` are unset). Serve the contents of `browser/` as the web root.
-- **SPA fallback is required.** Routing is client-side with deep links like
-  `/2025CSA/championship/scores`. The host must rewrite unknown paths to `/index.html`, or those
-  URLs 404 on refresh/direct-load. On a plain static host add the equivalent (`_redirects`
-  `/* /index.html 200`, `staticwebapp.config.json` navigationFallback, `try_files ... /index.html`
-  for nginx, etc.).
-- **Data must ship with the build.** `web/public/**` (including `data/*.json` produced by
-  `export_json.js`) is copied into the build as assets. Run the data pipeline **before**
-  `npm run build` so the JSON is present; the SPA fetches `data/index.json` + `data/<meet>.json`
-  at runtime relative to the app root.
-- **Serving from a sub-path** (e.g. `example.com/meets/`) requires
-  `npm run build -- --base-href /meets/`; the default build assumes the domain root.
-- The favicon lives at `web/public/favicon.ico`.
+- **CI never scrapes or parses** — `results/` and `meets.db` are gitignored. The exported
+  `web/public/data/*.json` is tracked and ships as build assets, so updating the live site's
+  data means: `npm run refresh`, commit the JSON, push.
+- Site URL: `https://rbmatth.github.io/meet-manager/`; deep links like
+  `/meet-manager/2026CSA/championship/scores` survive refresh via the 404.html fallback.
+- Local production build: `cd web && npm run build` (root-relative) — add
+  `-- --base-href /meet-manager/` to mirror CI.
 
 ## Gotchas
 - The DB and JSON are gitignored build artifacts (`meets.db`, `results/*`, `*.tar.gz`), so a

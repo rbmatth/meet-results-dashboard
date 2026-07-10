@@ -159,7 +159,8 @@ async function main() {
   // 3. Optional snapshot tarball (matches the old scrape.sh behavior).
   if (opts.archive) {
     const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const tgz = `${opts.meetId}_${ts}.tar.gz`;
+    fs.mkdirSync('archives', { recursive: true });
+    const tgz = path.join('archives', `${opts.meetId}_${ts}.tar.gz`);
     execFileSync('tar', ['-czf', tgz, '-C', path.dirname(opts.outDir), path.basename(opts.outDir)]);
     console.log(`Wrote ${tgz}`);
   }

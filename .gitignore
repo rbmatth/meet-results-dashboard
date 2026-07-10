@@ -1,3 +1,4 @@
 results/*
+archives/
 *.tar.gz
 *.db

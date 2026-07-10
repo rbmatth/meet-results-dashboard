@@ -1,0 +1,55 @@
+# Build the Angular SPA and deploy it to GitHub Pages on every push to main.
+# The meet data (web/public/data/*.json) is tracked in git, so no scraping or
+# parsing happens in CI — refresh data locally (npm run refresh), commit, push.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Root tests (parser)
+        run: npm test
+      - name: Install web deps
+        run: npm ci
+        working-directory: web
+      - name: Web tests
+        run: npm test
+        working-directory: web
+      - name: Build SPA
+        run: npm run build -- --base-href /meet-manager/
+        working-directory: web
+      - name: SPA fallback for Pages (404.html)
+        run: cp web/dist/web/browser/index.html web/dist/web/browser/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist/web/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
