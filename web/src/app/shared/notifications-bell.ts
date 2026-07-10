@@ -19,12 +19,12 @@ import { ChangedEvent, UpdatesService } from '../core/updates.service';
         type="button"
         class="notif-bell"
         (click)="toggle()"
-        [attr.aria-label]="svc.newCount() > 0 ? 'Notifications, ' + svc.newCount() + ' new' : 'Notifications'"
+        [attr.aria-label]="svc.changedEventCount() > 0 ? 'Notifications, ' + svc.changedEventCount() + ' events changed' : 'Notifications'"
         title="What's new"
       >
         🔔
-        @if (svc.newCount() > 0) {
-          <span class="notif-badge">{{ svc.newCount() }}</span>
+        @if (svc.changedEventCount() > 0) {
+          <span class="notif-badge">{{ svc.changedEventCount() }}</span>
         }
       </button>
 

@@ -47,7 +47,7 @@ describe('UpdatesService', () => {
     ));
     TestBed.tick();
 
-    expect(svc.newCount()).toBe(0);
+    expect(svc.changedEventCount()).toBe(0);
     expect(svc.changedEvents()).toEqual([]);
     // The baseline was saved, not left empty — a later load with the same data stays quiet.
     expect(localStorage.getItem('mrd:seen:T1')).not.toBeNull();
@@ -66,7 +66,7 @@ describe('UpdatesService', () => {
       result({ id: 1, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 1, team_id: 1, place: 1, time_cs: 3000 }),
     ]));
     TestBed.tick();
-    expect(svc.newCount()).toBe(0);
+    expect(svc.changedEventCount()).toBe(0);
 
     // Visit 2: event 1 gains a second placed swimmer (new result); event 2 gets its
     // first results ever (new event). Note the id space is shifted (2 -> 101, 102) to
@@ -78,12 +78,41 @@ describe('UpdatesService', () => {
     ]));
     TestBed.tick();
 
-    expect(svc.newCount()).toBe(2);
+    expect(svc.changedEventCount()).toBe(2);
     const changed = svc.changedEvents();
     expect(changed).toEqual([
       { eventId: 10, number: 1, title: 'Girls 9-10 50 Yard Freestyle Champ', division: 'CHAMP', newCount: 1, isNewEvent: false },
       { eventId: 20, number: 2, title: 'Girls 11-12 50 Yard Freestyle Champ', division: 'CHAMP', newCount: 1, isNewEvent: true },
     ]);
+  });
+
+  it('badges the count of changed events, not the count of new results', () => {
+    // The bell should read "2 events changed", not "3 new results" — three new
+    // results land in this visit, but only two distinct events are affected.
+    const svc = TestBed.inject(UpdatesService);
+    const data = TestBed.inject(DataService);
+    const ev1 = event(10, 1, '9-10', 'CHAMP');
+    const ev2 = event(20, 2, '11-12', 'CHAMP');
+    const teams = [team(1, 'T1')];
+    const swimmers = [swimmer(1, 1, 'A, B'), swimmer(2, 1, 'C, D'), swimmer(3, 1, 'E, F'), swimmer(4, 1, 'G, H')];
+
+    data.data.set(meetData('T2B', teams, swimmers, [ev1, ev2], [
+      result({ id: 1, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 1, team_id: 1, place: 1, time_cs: 3000 }),
+    ]));
+    TestBed.tick();
+    expect(svc.changedEventCount()).toBe(0);
+
+    // ev1 gains two more results (still one event); ev2 gets its first-ever result.
+    data.data.set(meetData('T2B', teams, swimmers, [ev1, ev2], [
+      result({ id: 1, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 1, team_id: 1, place: 1, time_cs: 3000 }),
+      result({ id: 2, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 2, team_id: 1, place: 2, time_cs: 3100 }),
+      result({ id: 3, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 3, team_id: 1, place: 3, time_cs: 3200 }),
+      result({ id: 4, event_id: 20, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 4, team_id: 1, place: 1, time_cs: 4000 }),
+    ]));
+    TestBed.tick();
+
+    expect(svc.newResults().length).toBe(3);
+    expect(svc.changedEventCount()).toBe(2);
   });
 
   it('markSeen() clears the diff going forward', () => {
@@ -103,10 +132,10 @@ describe('UpdatesService', () => {
       result({ id: 2, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 2, team_id: 1, place: 2, time_cs: 3100 }),
     ]));
     TestBed.tick();
-    expect(svc.newCount()).toBe(1);
+    expect(svc.changedEventCount()).toBe(1);
 
     svc.markSeen();
-    expect(svc.newCount()).toBe(0);
+    expect(svc.changedEventCount()).toBe(0);
     expect(svc.changedEvents()).toEqual([]);
   });
 
@@ -126,7 +155,7 @@ describe('UpdatesService', () => {
       result({ id: 1, event_id: 10, division: 'CHAMP', round_type: 'FINAL', swimmer_id: 1, team_id: 1, place: 1, time_cs: 3000 }),
     ]));
     TestBed.tick();
-    expect(svc.newCount()).toBe(0);
+    expect(svc.changedEventCount()).toBe(0);
 
     // "Re-parse": same content, but event/swimmer/result ids have all shifted upward.
     data.data.set(meetData('T4', teams, [swimmer(501, 1, 'A, B')], [event(510, 1, '9-10', 'CHAMP')], [
@@ -134,7 +163,7 @@ describe('UpdatesService', () => {
     ]));
     TestBed.tick();
 
-    expect(svc.newCount()).toBe(0);
+    expect(svc.changedEventCount()).toBe(0);
     expect(svc.changedEvents()).toEqual([]);
   });
 
@@ -148,10 +177,10 @@ describe('UpdatesService', () => {
 
     data.data.set(meetData('T5A', teams, swimmers, [ev], [r]));
     TestBed.tick();
-    expect(svc.newCount()).toBe(0); // first visit to T5A
+    expect(svc.changedEventCount()).toBe(0); // first visit to T5A
 
     data.data.set(meetData('T5B', teams, swimmers, [ev], [r]));
     TestBed.tick();
-    expect(svc.newCount()).toBe(0); // first visit to T5B too, independently
+    expect(svc.changedEventCount()).toBe(0); // first visit to T5B too, independently
   });
 });

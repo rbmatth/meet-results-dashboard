@@ -63,7 +63,9 @@ export class UpdatesService {
     return d.results.filter((r) => !base.has(naturalKey(r, events, swimmers)));
   });
 
-  readonly newCount = computed(() => this.newResults().length);
+  /** Number of distinct events with new results — what the notifications bell badges,
+   * since "17 new results" is noisy but "3 events changed" is a useful glance. */
+  readonly changedEventCount = computed(() => this.changedEvents().length);
 
   readonly changedEvents = computed<ChangedEvent[]>(() => {
     const news = this.newResults();
