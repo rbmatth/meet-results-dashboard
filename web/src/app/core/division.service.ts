@@ -34,6 +34,13 @@ export class DivisionService {
   readonly meets = computed(() => this.data.index());
 
   constructor() {
+    // Load the meet index unconditionally — the root-route guard (default-meet.guard.ts)
+    // only loads it for '/' or an unmatched path, so a direct navigation straight to
+    // '/<meet>/...' would otherwise leave meets() permanently empty (the selector shows
+    // no options at all, not just a desync). ensureIndex() is memoized, so this is a
+    // no-op if the guard already triggered it.
+    void this.data.ensureIndex();
+
     // Load the meet named in the URL whenever it changes.
     effect(() => {
       const code = this.meet();

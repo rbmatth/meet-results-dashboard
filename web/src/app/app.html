@@ -2,11 +2,15 @@
   <div class="brand">
     <span class="logo">🏊</span>
     <div>
-      <select class="meet-select" [value]="div.meet()" (change)="div.switchMeet($any($event.target).value)">
-        @for (m of div.meets(); track m.code) {
-          <option [value]="m.code">{{ m.name }}</option>
-        }
-      </select>
+      @if (div.meets().length) {
+        <select class="meet-select" [value]="div.meet()" (change)="div.switchMeet($any($event.target).value)">
+          @for (m of div.meets(); track m.code) {
+            <option [value]="m.code">{{ m.name }}</option>
+          }
+        </select>
+      } @else {
+        <span class="meet-select muted">Loading meets…</span>
+      }
       @if (data.data()?.meet; as m) {
         <div class="meet-sub">
           {{ m.facility }} · {{ m.start_date }} – {{ m.end_date }}

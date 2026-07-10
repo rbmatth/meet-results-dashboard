@@ -15,8 +15,12 @@ describe('App', () => {
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    // At the root URL there is no meet segment, so no meet data is requested.
+    // DivisionService loads the meet index unconditionally (not just via the root-route
+    // guard), so the selector has options even when a direct navigation to /<meet>/...
+    // never runs that guard. At the root URL there is no meet segment, so no per-meet
+    // data (loadMeet) is requested — only the index.
     const http = TestBed.inject(HttpTestingController);
+    http.expectOne('data/index.json').flush([]);
     http.verify();
     expect(fixture.componentInstance).toBeTruthy();
   });
