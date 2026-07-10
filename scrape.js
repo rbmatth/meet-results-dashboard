@@ -7,14 +7,18 @@
 //
 // Usage:   node scrape.js <MEET_ID> [out-dir] [options]
 // Example: node scrape.js 2026CSA
-//          node scrape.js 2026CSA results/2026CSA --concurrency 12
+//          node scrape.js 2026CSA results/2026CSA --concurrency 8
 //
 // Options:
 //   --base <url>        Site root (default https://meetresults.greensboroaquaticcenter.com/)
-//   --concurrency <n>   Parallel downloads (default 8)
+//   --concurrency <n>   Parallel downloads (default 4)
 //   --limit <n>         Cap the number of result pages fetched (for testing)
 //   --skip-existing     Keep files already on disk instead of re-fetching
 //   --archive           Also write <MEET>_<timestamp>.tar.gz of the output dir
+//
+// Pages already on disk are re-fetched conditionally (If-Modified-Since from the file
+// mtime) and rewritten only when the content actually differs, so a refresh reports
+// exactly which pages changed.
 //
 // The frameset entry pages (index.html, evtindex.htm, main.htm) are always fetched;
 // every same-directory .htm/.html page linked from evtindex.htm (the result and nav
@@ -28,7 +32,7 @@ const DEFAULT_BASE = 'https://meetresults.greensboroaquaticcenter.com/';
 const ENTRY_PAGES = ['index.html', 'evtindex.htm', 'main.htm'];
 
 function parseArgs(argv) {
-  const opts = { base: DEFAULT_BASE, concurrency: 8, limit: Infinity, skipExisting: false, archive: false };
+  const opts = { base: DEFAULT_BASE, concurrency: 4, limit: Infinity, skipExisting: false, archive: false };
   const positional = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -70,6 +74,22 @@ async function fetchText(url) {
   return res.text();
 }
 
+// Conditionally download url into dest. Returns 'new', 'changed', or 'unchanged'.
+// Sends If-Modified-Since from the existing file's mtime; if the server ignores it
+// (no 304), falls back to comparing content before rewriting.
+async function download(url, dest) {
+  const headers = { 'User-Agent': 'meet-manager-scraper' };
+  const exists = fs.existsSync(dest);
+  if (exists) headers['If-Modified-Since'] = fs.statSync(dest).mtime.toUTCString();
+  const res = await fetch(url, { headers });
+  if (res.status === 304) return 'unchanged';
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const text = await res.text();
+  if (exists && fs.readFileSync(dest, 'utf8') === text) return 'unchanged';
+  fs.writeFileSync(dest, text);
+  return exists ? 'changed' : 'new';
+}
+
 // The frameset is served at the directory URL (…/<MEET>/), not at /index.html, so
 // index.html is fetched from the meet root; every other page maps to <root><page>.
 function pageUrl(meetBase, page) {
@@ -98,8 +118,12 @@ async function main() {
   console.log(`Scraping ${meetBase} -> ${opts.outDir}/`);
 
   // 1. Fetch the event index and discover the result/nav pages it links to.
+  // (Written only when changed, so its mtime stays meaningful for If-Modified-Since.)
   const indexHtml = await fetchText(meetBase + 'evtindex.htm');
-  fs.writeFileSync(path.join(opts.outDir, 'evtindex.htm'), indexHtml);
+  const indexDest = path.join(opts.outDir, 'evtindex.htm');
+  if (!fs.existsSync(indexDest) || fs.readFileSync(indexDest, 'utf8') !== indexHtml) {
+    fs.writeFileSync(indexDest, indexHtml);
+  }
 
   const discovered = [...pageLinks(indexHtml)].filter((p) => !ENTRY_PAGES.includes(p)).sort();
   const resultPages = discovered.slice(0, opts.limit);
@@ -108,23 +132,29 @@ async function main() {
   console.log(`Found ${discovered.length} linked page(s); fetching ${pages.length} + evtindex.htm`);
 
   // 2. Download each page (bounded concurrency), skipping existing files if asked.
-  let fetched = 0, skipped = 0, failed = 0;
+  const tally = { new: 0, changed: 0, unchanged: 0, skipped: 0, failed: 0 };
+  const changedPages = [];
   await pool(pages, opts.concurrency, async (page) => {
     const dest = path.join(opts.outDir, page);
     if (opts.skipExisting && fs.existsSync(dest)) {
-      skipped++;
+      tally.skipped++;
       return;
     }
     try {
-      fs.writeFileSync(dest, await fetchText(pageUrl(meetBase, page)));
-      fetched++;
+      const status = await download(pageUrl(meetBase, page), dest);
+      tally[status]++;
+      if (status !== 'unchanged') changedPages.push(page);
     } catch (e) {
-      failed++;
+      tally.failed++;
       console.warn(`  ! ${page}: ${e.message}`);
     }
   });
 
-  console.log(`Done: ${fetched} fetched, ${skipped} skipped, ${failed} failed.`);
+  const fetched = tally.new + tally.changed + tally.unchanged;
+  console.log(
+    `Done: ${fetched} fetched (${tally.new} new, ${tally.changed} changed, ` +
+    `${tally.unchanged} unchanged), ${tally.skipped} skipped, ${tally.failed} failed.`,
+  );
 
   // 3. Optional snapshot tarball (matches the old scrape.sh behavior).
   if (opts.archive) {
@@ -134,7 +164,7 @@ async function main() {
     console.log(`Wrote ${tgz}`);
   }
 
-  if (failed) process.exitCode = 1;
+  if (tally.failed) process.exitCode = 1;
 }
 
 main().catch((e) => fail(e.stack || String(e)));
