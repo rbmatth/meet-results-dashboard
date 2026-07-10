@@ -36,7 +36,7 @@ jobs:
         run: npm test
         working-directory: web
       - name: Build SPA
-        run: npm run build -- --base-href /meet-manager/
+        run: npm run build -- --base-href /meet-results-dashboard/
         working-directory: web
       - name: SPA fallback for Pages (404.html)
         run: cp web/dist/web/browser/index.html web/dist/web/browser/404.html

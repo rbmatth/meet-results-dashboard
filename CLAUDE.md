@@ -101,18 +101,20 @@ has the only meaningful test suite (`scoring.spec.ts`) — keep it covered.
 
 ## Deployment / hosting
 
-Hosted on **GitHub Pages** (repo `rbmatth/meet-manager`, public) via
+Hosted on **GitHub Pages** (repo `rbmatth/meet-results-dashboard`, public) via
 `.github/workflows/deploy.yml`: every push to `main` runs the parser tests + web tests,
-builds the SPA with `--base-href /meet-manager/`, copies `index.html` → `404.html` (the
-Pages SPA-fallback workaround for deep links), and deploys `web/dist/web/browser/`.
+builds the SPA with `--base-href /meet-results-dashboard/`, copies `index.html` →
+`404.html` (the Pages SPA-fallback workaround for deep links), and deploys
+`web/dist/web/browser/`.
 
 - **CI never scrapes or parses** — `results/` and `meets.db` are gitignored. The exported
   `web/public/data/*.json` is tracked and ships as build assets, so updating the live site's
   data means: `npm run refresh`, commit the JSON, push.
-- Site URL: `https://rbmatth.github.io/meet-manager/`; deep links like
-  `/meet-manager/2026CSA/championship/scores` survive refresh via the 404.html fallback.
+- Site URL: `https://rbmatth.github.io/meet-results-dashboard/`; deep links like
+  `/meet-results-dashboard/2026CSA/championship/scores` survive refresh via the 404.html
+  fallback.
 - Local production build: `cd web && npm run build` (root-relative) — add
-  `-- --base-href /meet-manager/` to mirror CI.
+  `-- --base-href /meet-results-dashboard/` to mirror CI.
 
 ## Gotchas
 - The DB and JSON are gitignored build artifacts (`meets.db`, `results/*`, `*.tar.gz`), so a

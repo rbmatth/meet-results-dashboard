@@ -69,7 +69,7 @@ function pageLinks(html) {
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': 'meet-manager-scraper' } });
+  const res = await fetch(url, { headers: { 'User-Agent': 'meet-results-dashboard-scraper' } });
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
   return res.text();
 }
@@ -78,7 +78,7 @@ async function fetchText(url) {
 // Sends If-Modified-Since from the existing file's mtime; if the server ignores it
 // (no 304), falls back to comparing content before rewriting.
 async function download(url, dest) {
-  const headers = { 'User-Agent': 'meet-manager-scraper' };
+  const headers = { 'User-Agent': 'meet-results-dashboard-scraper' };
   const exists = fs.existsSync(dest);
   if (exists) headers['If-Modified-Since'] = fs.statSync(dest).mtime.toUTCString();
   const res = await fetch(url, { headers });

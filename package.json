@@ -1,5 +1,5 @@
 {
-  "name": "meet-manager",
+  "name": "meet-results-dashboard",
   "version": "1.0.0",
   "private": true,
   "description": "Parse HY-TEK Meet Manager result pages into a normalized SQLite database.",
