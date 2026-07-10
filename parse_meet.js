@@ -247,6 +247,21 @@ const TEAM_ALIASES = {
   'Blue Dolphins-NC': { code: 'BD-NC', name: 'Blue Dolphins' },
 };
 
+// Resolve a raw team string to its alias. The source clips long team strings at
+// varying column widths ("Hamilton Lakes-N" vs "Hamilton Lakes-NC"), so after an
+// exact match, fall back to a prefix match in either direction. The minimum prefix
+// length keeps short stable codes (PT, FR, HF-NC) on the exact-match path only.
+const ALIAS_MIN_PREFIX = 8;
+function resolveTeamAlias(raw) {
+  const exact = TEAM_ALIASES[raw];
+  if (exact) return exact;
+  for (const [key, alias] of Object.entries(TEAM_ALIASES)) {
+    const len = Math.min(key.length, raw.length);
+    if (len >= ALIAS_MIN_PREFIX && (key.startsWith(raw) || raw.startsWith(key))) return alias;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Database access layer
 // ---------------------------------------------------------------------------
@@ -282,8 +297,9 @@ class Store {
   }
 
   teamId(rawCode) {
-    const alias = TEAM_ALIASES[rawCode.trim()];
-    const code = alias ? alias.code : rawCode.trim();
+    const raw = rawCode.trim();
+    const alias = resolveTeamAlias(raw);
+    const code = alias ? alias.code : raw;
     const name = alias ? alias.name : null;
     if (this.teamCache.has(code)) return this.teamCache.get(code);
     const parts = code.split('-');
@@ -454,6 +470,27 @@ function relTeamCode(curRelay, store) {
   return curRelay._teamCode;
 }
 
+// Warn about probable same-club duplicates among this meet's teams: pairs where one
+// code is a prefix of the other (a truncation-width variant missing from TEAM_ALIASES).
+function warnLikelyDuplicateTeams(db, meetId) {
+  const teams = db.prepare(
+    `SELECT DISTINCT t.team_id, t.code FROM team t
+     WHERE t.team_id IN (SELECT team_id FROM swimmer WHERE meet_id = ?)
+        OR t.team_id IN (SELECT rl.team_id FROM relay rl
+                         JOIN event_round er ON er.round_id = rl.round_id
+                         JOIN event e ON e.event_id = er.event_id WHERE e.meet_id = ?)`,
+  ).all(meetId, meetId);
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const [a, b] = [teams[i].code, teams[j].code];
+      const len = Math.min(a.length, b.length);
+      if (len >= ALIAS_MIN_PREFIX && (a.startsWith(b) || b.startsWith(a))) {
+        console.warn(`  ! likely duplicate teams: "${a}" and "${b}" — add a TEAM_ALIASES entry?`);
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -532,6 +569,7 @@ function main() {
   for (const t of ['session', 'team', 'swimmer', 'event', 'event_round', 'result', 'relay', 'relay_leg', 'split']) {
     console.log(`  ${t.padEnd(12)} ${count(t)}`);
   }
+  warnLikelyDuplicateTeams(db, meetId);
   db.close();
 }
 
