@@ -336,6 +336,23 @@ function roundTypeFor(fileName, division) {
   return division === 'OPEN' ? 'TIMED_FINAL' : 'FINAL';
 }
 
+// A results file normally has one "Event N ..." title followed by its result rows.
+// But some Open individual events (13-19 age-group events, confirmed for Backstroke/
+// Breaststroke/Butterfly/Freestyle and their relays) are actually two independent
+// age-group heats — e.g. 13-14 and 15-19 — that HY-TEK numbers identically and
+// concatenates in one file, each with its own title line and its own place-1..N
+// result block. Treating that as a single event would make two unrelated swimmers
+// both "place 1" look like a tie, splitting points between them incorrectly. So:
+// find every title-line index in the file and parse each as its own block.
+function titleLineIndexes(lines) {
+  const idxs = [];
+  for (let i = 0; i < lines.length; i++) {
+    const clean = stripSpans(lines[i]).replace(/<\/?b>/g, '');
+    if (/^\s*Event\s+\d+/.test(clean)) idxs.push(i);
+  }
+  return idxs;
+}
+
 function parseEventFile(dir, fileName, ctx, store) {
   const html = fs.readFileSync(path.join(dir, fileName), 'utf8');
   const raw = preBody(html);
@@ -349,21 +366,36 @@ function parseEventFile(dir, fileName, ctx, store) {
   const lines = raw.split('\n');
   const header = parseHeader(lines);
 
-  const titleLine = lines.find((l) => /<b>\s*Event\s+\d+/i.test(l) || /^\s*Event\s+\d+/.test(stripSpans(l).replace(/<\/?b>/g, '')));
-  if (!titleLine) return 'skipped-notitle';
-  const ev = parseEventTitle(stripSpans(titleLine).replace(/<\/?b>/g, ''));
-  if (!ev) return 'skipped-notitle';
+  const titleIdxs = titleLineIndexes(lines);
+  if (!titleIdxs.length) return 'skipped-notitle';
 
   const mapping = ctx.fileMap.get(fileName) || {};
   const sessionId = mapping.sessionLabel ? ctx.sessionIdByLabel.get(mapping.sessionLabel) : null;
-  const roundType = roundTypeFor(fileName, ev.division);
 
-  // Upsert the event (shared by prelim + final rounds).
-  let eventId = ctx.eventIdByNumber.get(ev.event_number);
+  let parsedAny = false;
+  for (let b = 0; b < titleIdxs.length; b++) {
+    const start = titleIdxs[b];
+    const end = b + 1 < titleIdxs.length ? titleIdxs[b + 1] : lines.length;
+    const titleLine = stripSpans(lines[start]).replace(/<\/?b>/g, '');
+    const ev = parseEventTitle(titleLine);
+    if (!ev) continue;
+    parseEventBlock(ev, lines.slice(start, end), roundTypeFor(fileName, ev.division), sessionId, fileName, header, ctx, store);
+    parsedAny = true;
+  }
+  return parsedAny ? 'parsed' : 'skipped-notitle';
+}
+
+// Parse one title + result-rows block (see titleLineIndexes above for why a file can
+// hold more than one). `lines` starts at this block's own title line.
+function parseEventBlock(ev, lines, roundType, sessionId, fileName, header, ctx, store) {
+  // Upsert the event (shared by prelim + final rounds, and by this block's age
+  // group specifically — two blocks can legitimately share an event_number).
+  const eventKey = `${ev.event_number}|${ev.age_group_label}`;
+  let eventId = ctx.eventIdByNumber.get(eventKey);
   if (!eventId) {
     eventId = store.ps.event.run(store.meetId, ev.event_number, ev.gender, ev.age_group_label,
       ev.min_age, ev.max_age, ev.distance, ev.stroke, ev.course, ev.is_relay, ev.division, ev.title).lastInsertRowid;
-    ctx.eventIdByNumber.set(ev.event_number, eventId);
+    ctx.eventIdByNumber.set(eventKey, eventId);
   }
   const roundId = store.ps.round.run(eventId, sessionId ?? null, roundType, fileName, header.report_at).lastInsertRowid;
 
@@ -459,7 +491,6 @@ function parseEventFile(dir, fileName, ctx, store) {
     }
   }
   flushRelaySplits();
-  return 'parsed';
 }
 
 // Look up the team code for a relay via its stored team_id (cached reverse map).

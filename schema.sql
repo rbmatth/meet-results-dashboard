@@ -53,6 +53,10 @@ CREATE TABLE IF NOT EXISTS swimmer (
 );
 
 -- A logical event. Champ prelims and finals share one event row (same number).
+-- A small number of Open individual events reuse the same event_number for two
+-- independent age-group heats (e.g. 13-14 and 15-19 both filed as "Event 109") —
+-- the unique key includes age_group_label so those load as two distinct events
+-- instead of merging into one (which would falsely tie their unrelated winners).
 CREATE TABLE IF NOT EXISTS event (
   event_id        INTEGER PRIMARY KEY,
   meet_id         INTEGER NOT NULL REFERENCES meet(meet_id) ON DELETE CASCADE,
@@ -67,7 +71,7 @@ CREATE TABLE IF NOT EXISTS event (
   is_relay        INTEGER NOT NULL DEFAULT 0 CHECK (is_relay IN (0, 1)),
   division        TEXT,                 -- 'CHAMP' / 'OPEN'
   title           TEXT,                 -- raw title line
-  UNIQUE (meet_id, event_number)
+  UNIQUE (meet_id, event_number, age_group_label)
 );
 
 -- A round of an event: prelims, finals, or a single timed final (Open/relay).

@@ -100,7 +100,7 @@ describe('loadMeet (fixture meet end-to-end)', () => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'meet-test-'));
     dbPath = path.join(tmp, 'test.db');
     const res = loadMeet(fixtures, dbPath);
-    assert.equal(res.tally.parsed, 2, 'two results pages parse');
+    assert.equal(res.tally.parsed, 3, 'three results pages parse');
     assert.equal(res.tally.skipped, 1, 'psych sheet is skipped');
     db = new DatabaseSync(dbPath);
   });
@@ -118,7 +118,41 @@ describe('loadMeet (fixture meet end-to-end)', () => {
 
   test('psych sheet creates no event', () => {
     assert.equal(db.prepare('SELECT COUNT(*) c FROM event WHERE event_number = 34').get().c, 0);
-    assert.equal(db.prepare('SELECT COUNT(*) c FROM event').get().c, 2);
+    assert.equal(db.prepare('SELECT COUNT(*) c FROM event').get().c, 4);
+  });
+
+  test('a file with two embedded age-group blocks splits into two events', () => {
+    const events = db.prepare(
+      'SELECT event_id, age_group_label FROM event WHERE event_number = 109 ORDER BY age_group_label',
+    ).all();
+    assert.equal(events.length, 2, 'event 109 becomes two distinct events, not one merged event');
+    assert.deepEqual(events.map((e) => e.age_group_label), ['13-14', '15-19']);
+    assert.notEqual(events[0].event_id, events[1].event_id);
+  });
+
+  test('each age-group block scores its own place 1 (no false cross-block tie)', () => {
+    const winner = (ageGroup) => db.prepare(
+      `SELECT s.full_name name FROM result r
+       JOIN swimmer s ON s.swimmer_id = r.swimmer_id
+       JOIN event_round er ON er.round_id = r.round_id
+       JOIN event e ON e.event_id = er.event_id
+       WHERE e.event_number = 109 AND e.age_group_label = ? AND r.place = 1`,
+    ).get(ageGroup);
+    assert.equal(winner('13-14').name, 'Young, Ainsley');
+    assert.equal(winner('15-19').name, 'Dugas, Shelby M');
+  });
+
+  test('a genuine same-block tie is still recorded as a tie', () => {
+    const tied = db.prepare(
+      `SELECT s.full_name name, r.time_cs FROM result r
+       JOIN swimmer s ON s.swimmer_id = r.swimmer_id
+       JOIN event_round er ON er.round_id = r.round_id
+       JOIN event e ON e.event_id = er.event_id
+       WHERE e.event_number = 109 AND e.age_group_label = '15-19' AND r.place = 26
+       ORDER BY name`,
+    ).all();
+    assert.equal(tied.length, 2);
+    assert.deepEqual(tied.map((t) => t.time_cs), [4296, 4296]);
   });
 
   test('a tie shares the place with both times recorded', () => {
