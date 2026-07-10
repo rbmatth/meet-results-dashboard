@@ -4,8 +4,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
-import { DropPipe, TimePipe, formatCs } from '../../core/format';
+import { formatCs, formatDropCs } from '../../core/format';
 import { Result, RoundType } from '../../core/models';
+import { DataTable, Column } from '../../shared/data-table';
 
 interface RoundBlock {
   type: RoundType;
@@ -13,10 +14,37 @@ interface RoundBlock {
   results: Result[];
 }
 
+interface RelayRow {
+  result: Result;
+  place: number | null;
+  teamCode: string;
+  letter: string;
+  seedTime: number | null;
+  time: number | null;
+  timeCode: string | null;
+  points: number;
+  legsDisplay: string;
+  splitsDisplay: string;
+}
+
+interface IndividualRow {
+  result: Result;
+  place: number | null;
+  heat: string | number | null;
+  name: string;
+  teamCode: string;
+  age: number | null;
+  seedTime: number | null;
+  time: number | null;
+  timeCode: string | null;
+  drop: number | null;
+  points: number;
+}
+
 @Component({
   selector: 'app-event-detail',
   standalone: true,
-  imports: [RouterLink, TimePipe, DropPipe],
+  imports: [RouterLink, DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (event(); as e) {
@@ -31,47 +59,9 @@ interface RoundBlock {
       @for (block of blocks(); track block.type) {
         <h2>{{ block.label }}</h2>
         @if (e.is_relay) {
-          <table class="plain">
-            <thead><tr><th class="num">Pl</th><th>Team</th><th class="num">Seed</th><th class="num">Time</th><th class="num">Pts</th><th>Swimmers &amp; splits</th></tr></thead>
-            <tbody>
-              @for (r of block.results; track r.id) {
-                <tr>
-                  <td class="num">{{ r.place }}</td>
-                  <td><a [routerLink]="div.link('teams', r.team_id ?? 0)">{{ code(r.team_id) }}</a> '{{ r.relay?.letter }}'</td>
-                  <td class="num">{{ r.seed_cs | time }}</td>
-                  <td class="num">{{ r.time_code || (r.time_cs | time) }}</td>
-                  <td class="num">{{ pts(r.id) }}</td>
-                  <td>
-                    <div class="legs">
-                      @for (leg of r.relay?.legs ?? []; track leg.leg_no) {
-                        <span class="leg">{{ leg.leg_no }}) {{ leg.name }} {{ leg.age }}</span>
-                      }
-                    </div>
-                    @if (r.splits.length) { <div class="splits muted">{{ splitStr(r) }}</div> }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <app-data-table [columns]="relayColumns()" [rows]="relayRows(block.results)" [initialSort]="{ key: 'place', dir: 'asc' }" searchPlaceholder="Search teams…" />
         } @else {
-          <table class="plain">
-            <thead><tr><th class="num">Pl</th><th>Heat</th><th>Name</th><th>Team</th><th class="num">Age</th><th class="num">Seed</th><th class="num">Time</th><th class="num">Drop</th><th class="num">Pts</th></tr></thead>
-            <tbody>
-              @for (r of block.results; track r.id) {
-                <tr>
-                  <td class="num">{{ r.place }}</td>
-                  <td>{{ r.heat_group }}</td>
-                  <td><a [routerLink]="div.link('swimmers', r.swimmer_id ?? 0)">{{ name(r.swimmer_id) }}</a></td>
-                  <td><a [routerLink]="div.link('teams', r.team_id ?? 0)">{{ code(r.team_id) }}</a></td>
-                  <td class="num">{{ age(r.swimmer_id) }}</td>
-                  <td class="num">{{ r.seed_cs | time }}</td>
-                  <td class="num">{{ r.time_code || (r.time_cs | time) }}</td>
-                  <td class="num" [class.pos]="drop(r) > 0" [class.neg]="drop(r) < 0">{{ (dropVal(r)) | drop }}</td>
-                  <td class="num">{{ pts(r.id) }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <app-data-table [columns]="individualColumns()" [rows]="individualRows(block.results)" [initialSort]="{ key: 'place', dir: 'asc' }" searchPlaceholder="Search swimmers…" />
         }
       }
     } @else {
@@ -118,6 +108,62 @@ export class EventDetail {
   }
   splitStr(r: Result): string {
     return r.splits.map((s) => formatCs(s.cumulative_cs) + (s.interval_cs != null ? ` (${formatCs(s.interval_cs)})` : '')).join('  ');
+  }
+
+  relayRows(results: Result[]): RelayRow[] {
+    return results.map((r) => ({
+      result: r,
+      place: r.place,
+      teamCode: this.code(r.team_id),
+      letter: r.relay?.letter ?? '',
+      seedTime: r.seed_cs,
+      time: r.time_cs,
+      timeCode: r.time_code,
+      points: Math.round(this.pts(r.id) as any * 100) / 100,
+      legsDisplay: (r.relay?.legs ?? []).map((l) => `${l.leg_no}) ${l.name} ${l.age}`).join(', '),
+      splitsDisplay: this.splitStr(r),
+    }));
+  }
+
+  individualRows(results: Result[]): IndividualRow[] {
+    return results.map((r) => ({
+      result: r,
+      place: r.place,
+      heat: r.heat_group,
+      name: this.name(r.swimmer_id),
+      teamCode: this.code(r.team_id),
+      age: this.age(r.swimmer_id),
+      seedTime: r.seed_cs,
+      time: r.time_cs,
+      timeCode: r.time_code,
+      drop: this.dropVal(r),
+      points: Math.round(this.pts(r.id) as any * 100) / 100,
+    }));
+  }
+
+  relayColumns(): Column<RelayRow>[] {
+    return [
+      { key: 'place', header: 'Pl', value: (r) => r.place ?? 0, numeric: true },
+      { key: 'teamCode', header: 'Team', value: (r) => r.teamCode, display: (r) => `${r.teamCode} '${r.letter}'`, link: (r) => this.div.link('teams', r.result.team_id ?? 0) },
+      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime ?? 0, display: (r) => formatCs(r.seedTime), numeric: true },
+      { key: 'time', header: 'Time', value: (r) => r.time ?? 0, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
+      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true },
+      { key: 'legsDisplay', header: 'Swimmers & splits', value: (r) => r.legsDisplay, display: (r) => r.legsDisplay + (r.splitsDisplay ? `\n${r.splitsDisplay}` : '') },
+    ];
+  }
+
+  individualColumns(): Column<IndividualRow>[] {
+    return [
+      { key: 'place', header: 'Pl', value: (r) => r.place ?? 0, numeric: true },
+      { key: 'heat', header: 'Heat', value: (r) => r.heat },
+      { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => this.div.link('swimmers', r.result.swimmer_id ?? 0) },
+      { key: 'teamCode', header: 'Team', value: (r) => r.teamCode, link: (r) => this.div.link('teams', r.result.team_id ?? 0) },
+      { key: 'age', header: 'Age', value: (r) => r.age ?? 0, numeric: true },
+      { key: 'seedTime', header: 'Seed', value: (r) => r.seedTime ?? 0, display: (r) => formatCs(r.seedTime), numeric: true },
+      { key: 'time', header: 'Time', value: (r) => r.time ?? 0, display: (r) => r.timeCode || formatCs(r.time), numeric: true },
+      { key: 'drop', header: 'Drop', value: (r) => r.drop ?? 0, display: (r) => formatDropCs(r.drop), numeric: true },
+      { key: 'points', header: 'Pts', value: (r) => r.points, numeric: true },
+    ];
   }
 }
 

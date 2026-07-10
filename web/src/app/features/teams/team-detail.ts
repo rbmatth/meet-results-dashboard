@@ -4,11 +4,33 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
+import { DataTable, Column } from '../../shared/data-table';
+
+interface GroupRow {
+  key: string;
+  gender: string;
+  ageGroup: string;
+  points: number;
+}
+
+interface TopScorerRow {
+  id: number;
+  rank: number;
+  name: string;
+  points: number;
+}
+
+interface RosterRow {
+  id: number;
+  name: string;
+  age: number | null;
+  gender: string;
+}
 
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (team(); as t) {
@@ -24,34 +46,13 @@ import { DivisionService } from '../../core/division.service';
       </div>
 
       <h2>Points by gender &amp; age group</h2>
-      <table class="plain">
-        <thead><tr><th>Gender</th><th>Age group</th><th class="num">Points</th></tr></thead>
-        <tbody>
-          @for (g of groups(); track g.key) {
-            <tr><td>{{ g.gender }}</td><td>{{ g.ageGroup }}</td><td class="num">{{ g.points }}</td></tr>
-          } @empty { <tr><td colspan="3" class="muted">No points.</td></tr> }
-        </tbody>
-      </table>
+      <app-data-table [columns]="groupColumns()" [rows]="groupRows()" searchPlaceholder="Filter groups…" />
 
       <h2>Top scorers</h2>
-      <table class="plain">
-        <thead><tr><th>#</th><th>Name</th><th class="num">Points</th></tr></thead>
-        <tbody>
-          @for (s of topScorers(); track s.id; let i = $index) {
-            <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="div.link('swimmers', s.id)">{{ s.name }}</a></td><td class="num">{{ s.points }}</td></tr>
-          } @empty { <tr><td colspan="3" class="muted">No scorers.</td></tr> }
-        </tbody>
-      </table>
+      <app-data-table [columns]="topScorerColumns()" [rows]="topScorerRows()" [initialSort]="{ key: 'rank', dir: 'asc' }" searchPlaceholder="Filter scorers…" />
 
       <h2>Roster ({{ roster().length }})</h2>
-      <table class="plain">
-        <thead><tr><th>Name</th><th class="num">Age</th><th>Gender</th></tr></thead>
-        <tbody>
-          @for (s of roster(); track s.id) {
-            <tr><td><a [routerLink]="div.link('swimmers', s.id)">{{ s.name }}</a></td><td class="num">{{ s.age }}</td><td>{{ s.gender === 'F' ? 'Girls' : 'Boys' }}</td></tr>
-          }
-        </tbody>
-      </table>
+      <app-data-table [columns]="rosterColumns()" [rows]="rosterRows()" searchPlaceholder="Filter roster…" />
     } @else {
       <p class="muted">Team not found.</p>
     }
@@ -95,5 +96,49 @@ export class TeamDetail {
   signed(n: number | undefined | null): string {
     const v = this.r2(n);
     return v > 0 ? `+${v}` : String(v);
+  }
+
+  groupRows = computed<GroupRow[]>(() => this.groups());
+
+  topScorerRows = computed<TopScorerRow[]>(() =>
+    this.topScorers().map((s, i) => ({
+      id: s.id,
+      rank: i + 1,
+      name: s.name,
+      points: s.points,
+    }))
+  );
+
+  rosterRows = computed<RosterRow[]>(() =>
+    this.roster().map((s) => ({
+      id: s.id,
+      name: s.name,
+      age: s.age,
+      gender: s.gender === 'F' ? 'Girls' : 'Boys',
+    }))
+  );
+
+  groupColumns(): Column<GroupRow>[] {
+    return [
+      { key: 'gender', header: 'Gender', value: (g) => g.gender },
+      { key: 'ageGroup', header: 'Age group', value: (g) => g.ageGroup },
+      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true },
+    ];
+  }
+
+  topScorerColumns(): Column<TopScorerRow>[] {
+    return [
+      { key: 'rank', header: '#', value: (s) => s.rank, numeric: true },
+      { key: 'name', header: 'Name', value: (s) => s.name, link: (s) => this.div.link('swimmers', s.id) },
+      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true },
+    ];
+  }
+
+  rosterColumns(): Column<RosterRow>[] {
+    return [
+      { key: 'name', header: 'Name', value: (r) => r.name, link: (r) => this.div.link('swimmers', r.id) },
+      { key: 'age', header: 'Age', value: (r) => r.age ?? 0, numeric: true },
+      { key: 'gender', header: 'Gender', value: (r) => r.gender },
+    ];
   }
 }

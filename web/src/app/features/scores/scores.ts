@@ -2,31 +2,43 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
+import { DataTable, Column } from '../../shared/data-table';
+
+interface StandingsRow {
+  rank: number;
+  teamId: number;
+  code: string;
+  points: number;
+  pct: number;
+  predicted: number;
+  delta: number;
+}
+
+interface GroupStandingsRow {
+  rank: number;
+  teamId: number;
+  code: string;
+  points: number;
+}
+
+interface TopScorerRow {
+  rank: number;
+  id: number;
+  name: string;
+  team: string;
+  points: number;
+}
 
 @Component({
   selector: 'app-scores',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h1>{{ div.label() }} — Team Standings</h1>
-    <p class="muted">Points are the {{ div.label() }} competition only; relays score 2× individual. “Predicted” ranks each event by seed time.</p>
+    <h1>{{ div.label() }} - Team Standings</h1>
+    <p class="muted">Points are the {{ div.label() }} competition only; relays score 2x individual. Predicted ranks each event by seed time.</p>
 
-    <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">Points</th><th></th><th class="num">Predicted</th><th class="num">Δ vs seed</th></tr></thead>
-      <tbody>
-        @for (row of standings(); track row.teamId; let i = $index) {
-          <tr>
-            <td class="num">{{ i + 1 }}</td>
-            <td><a [routerLink]="div.link('teams', row.teamId)">{{ row.code }}</a></td>
-            <td class="num">{{ row.points }}</td>
-            <td style="width:40%"><div class="bar-wrap"><span class="bar" [style.width.%]="row.pct"></span></div></td>
-            <td class="num">{{ row.predicted }}</td>
-            <td class="num" [class.pos]="row.delta > 0" [class.neg]="row.delta < 0">{{ signed(row.delta) }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
+    <app-data-table [columns]="standingsColumns()" [rows]="standingsRows()" [initialSort]="rankSort()" searchPlaceholder="Search teams..." />
 
     <h2>Standings within a division (gender &amp; age group)</h2>
     <div class="filters">
@@ -41,24 +53,10 @@ import { DivisionService } from '../../core/division.service';
         </select>
       </label>
     </div>
-    <table class="plain">
-      <thead><tr><th>#</th><th>Team</th><th class="num">Points</th></tr></thead>
-      <tbody>
-        @for (g of groupStandings(); track g.teamId; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="div.link('teams', g.teamId)">{{ g.code }}</a></td><td class="num">{{ g.points }}</td></tr>
-        } @empty { <tr><td colspan="3" class="muted">No points in this division.</td></tr> }
-      </tbody>
-    </table>
+    <app-data-table [columns]="groupStandingsColumns()" [rows]="groupStandingsRows()" [initialSort]="rankSort()" searchPlaceholder="Search teams..." />
 
     <h2>Top individual scorers</h2>
-    <table class="plain">
-      <thead><tr><th>#</th><th>Name</th><th>Team</th><th class="num">Points</th></tr></thead>
-      <tbody>
-        @for (s of topScorers(); track s.id; let i = $index) {
-          <tr><td class="num">{{ i + 1 }}</td><td><a [routerLink]="div.link('swimmers', s.id)">{{ s.name }}</a></td><td>{{ s.team }}</td><td class="num">{{ s.points }}</td></tr>
-        }
-      </tbody>
-    </table>
+    <app-data-table [columns]="topScorersColumns()" [rows]="topScorersRows()" [initialSort]="rankSort()" searchPlaceholder="Search swimmers..." />
   `,
 })
 export class Scores {
@@ -120,6 +118,64 @@ export class Scores {
 
   signed(n: number): string {
     return n > 0 ? `+${n}` : String(n);
+  }
+
+  rankSort() {
+    return { key: 'rank', dir: 'asc' as const };
+  }
+
+  standingsRows = computed<StandingsRow[]>(() =>
+    this.standings().map((row, i) => ({
+      rank: i + 1,
+      ...row,
+    }))
+  );
+
+  groupStandingsRows = computed<GroupStandingsRow[]>(() =>
+    this.groupStandings().map((g, i) => ({
+      rank: i + 1,
+      teamId: g.teamId,
+      code: g.code,
+      points: g.points,
+    }))
+  );
+
+  topScorersRows = computed<TopScorerRow[]>(() =>
+    this.topScorers().map((s, i) => ({
+      rank: i + 1,
+      id: s.id,
+      name: s.name,
+      team: s.team,
+      points: s.points,
+    }))
+  );
+
+  standingsColumns(): Column<StandingsRow>[] {
+    return [
+      { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
+      { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.teamId) },
+      { key: 'points', header: 'Points', value: (r) => r.points, numeric: true },
+      { key: 'pct', header: '', value: (r) => r.pct, display: (r) => '#'.repeat(Math.round(r.pct / 10)) },
+      { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true },
+      { key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, display: (r) => this.signed(r.delta), numeric: true },
+    ];
+  }
+
+  groupStandingsColumns(): Column<GroupStandingsRow>[] {
+    return [
+      { key: 'rank', header: '#', value: (g) => g.rank, numeric: true },
+      { key: 'code', header: 'Team', value: (g) => g.code, link: (g) => this.div.link('teams', g.teamId) },
+      { key: 'points', header: 'Points', value: (g) => g.points, numeric: true },
+    ];
+  }
+
+  topScorersColumns(): Column<TopScorerRow>[] {
+    return [
+      { key: 'rank', header: '#', value: (s) => s.rank, numeric: true },
+      { key: 'name', header: 'Name', value: (s) => s.name, link: (s) => this.div.link('swimmers', s.id) },
+      { key: 'team', header: 'Team', value: (s) => s.team },
+      { key: 'points', header: 'Points', value: (s) => s.points, numeric: true },
+    ];
   }
 }
 

@@ -4,8 +4,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
-import { DropPipe, TimePipe } from '../../core/format';
+import { formatCs, formatDropCs } from '../../core/format';
 import { Division, Result } from '../../core/models';
+import { DataTable, Column } from '../../shared/data-table';
 
 interface Swim {
   result: Result;
@@ -22,7 +23,7 @@ interface Swim {
 @Component({
   selector: 'app-swimmer-detail',
   standalone: true,
-  imports: [RouterLink, TimePipe, DropPipe],
+  imports: [RouterLink, DataTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (swimmer(); as s) {
@@ -38,26 +39,7 @@ interface Swim {
         <div class="stat"><div class="n">{{ swims().length }}</div><div class="l">Swims (all)</div></div>
       </div>
       <h2>Swims</h2>
-      <table class="plain">
-        <thead>
-          <tr><th>Event</th><th>Div</th><th>Round</th><th>Heat</th><th class="num">Seed</th><th class="num">Time</th><th class="num">Place</th><th class="num">Drop</th><th class="num">Pts</th></tr>
-        </thead>
-        <tbody>
-          @for (sw of swims(); track sw.result.id) {
-            <tr>
-              <td><a [routerLink]="div.eventLink({ id: sw.eventId, division: sw.eventDivision })">{{ sw.eventTitle }}</a></td>
-              <td><span class="chip" [class.champ]="sw.division === 'Champ'" [class.open]="sw.division === 'Open'">{{ sw.division }}</span></td>
-              <td>{{ sw.round }}</td>
-              <td>{{ sw.result.heat_group }}</td>
-              <td class="num">{{ sw.result.seed_cs | time }}</td>
-              <td class="num">{{ sw.result.time_code || (sw.result.time_cs | time) }}</td>
-              <td class="num">{{ sw.result.place }}</td>
-              <td class="num" [class.pos]="(sw.dropCs ?? 0) > 0" [class.neg]="(sw.dropCs ?? 0) < 0">{{ sw.dropCs | drop }}</td>
-              <td class="num">{{ sw.points }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <app-data-table [columns]="swimColumns()" [rows]="swims()" [initialSort]="{ key: 'eventNumber', dir: 'asc' }" searchPlaceholder="Search swims…" />
     } @else {
       <p class="muted">Swimmer not found.</p>
     }
@@ -98,6 +80,18 @@ export class SwimmerDetail {
       })
       .sort((a, b) => a.eventNumber - b.eventNumber || roundRank(a.round) - roundRank(b.round));
   });
+
+  swimColumns = (): Column<Swim>[] => [
+    { key: 'eventTitle', header: 'Event', value: (s) => s.eventTitle, link: (s) => this.div.eventLink({ id: s.eventId, division: s.eventDivision }) },
+    { key: 'division', header: 'Div', value: (s) => s.division },
+    { key: 'round', header: 'Round', value: (s) => s.round },
+    { key: 'heat', header: 'Heat', value: (s) => s.result.heat_group },
+    { key: 'seed', header: 'Seed', value: (s) => s.result.seed_cs ?? 0, display: (s) => formatCs(s.result.seed_cs), numeric: true },
+    { key: 'time', header: 'Time', value: (s) => s.result.time_cs ?? 0, display: (s) => s.result.time_code || formatCs(s.result.time_cs), numeric: true },
+    { key: 'place', header: 'Place', value: (s) => s.result.place ?? 0, numeric: true },
+    { key: 'drop', header: 'Drop', value: (s) => s.dropCs ?? 0, display: (s) => formatDropCs(s.dropCs), numeric: true },
+    { key: 'points', header: 'Pts', value: (s) => s.points ?? 0, numeric: true },
+  ];
 }
 
 function roundLabel(rt: string): string {
