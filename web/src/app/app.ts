@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { DataService } from './core/data.service';
 import { DivisionService } from './core/division.service';
+import { ThemeService } from './core/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ import { DivisionService } from './core/division.service';
 export class App {
   protected readonly data = inject(DataService);
   protected readonly div = inject(DivisionService);
+  protected readonly theme = inject(ThemeService);
 
   protected readonly navItems = [
     { seg: 'scores', label: 'Standings' },

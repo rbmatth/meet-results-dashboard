@@ -1,4 +1,6 @@
-/* Global design system */
+/* Global design system. Dark is the default palette; light overrides via
+   [data-theme="light"] (explicit choice, ThemeService) or prefers-color-scheme
+   (no explicit choice yet). */
 :root {
   --bg: #0f172a;
   --surface: #1e293b;
@@ -13,6 +15,40 @@
   --bad: #f87171;
   --warn: #fbbf24;
   --chip: #334155;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --border: #e2e8f0;
+    --border-soft: #eef2f7;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #0284c7;
+    --accent-2: #4f46e5;
+    --good: #059669;
+    --bad: #dc2626;
+    --warn: #d97706;
+    --chip: #e2e8f0;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --border-soft: #eef2f7;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #0284c7;
+  --accent-2: #4f46e5;
+  --good: #059669;
+  --bad: #dc2626;
+  --warn: #d97706;
+  --chip: #e2e8f0;
 }
 
 * { box-sizing: border-box; }
@@ -61,6 +97,14 @@ h3 { font-size: 1rem; margin: 1rem 0 .5rem; }
 }
 .division-switch a:hover { color: var(--text); }
 .division-switch a.active { background: var(--accent-2); color: #0b1020; }
+
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 2.1rem; height: 2.1rem; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font-size: 1.05rem; cursor: pointer;
+  line-height: 1;
+}
+.theme-toggle:hover { border-color: var(--accent); }
 
 .content { padding: 1.25rem 1.5rem 4rem; max-width: 1280px; margin: 0 auto; }
 .state { padding: 3rem; text-align: center; color: var(--muted); }

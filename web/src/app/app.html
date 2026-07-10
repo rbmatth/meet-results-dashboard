@@ -26,6 +26,16 @@
       <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
     }
   </nav>
+
+  <button
+    type="button"
+    class="theme-toggle"
+    (click)="theme.toggle()"
+    [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+    [title]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+  >
+    {{ theme.theme() === 'dark' ? '☀️' : '🌙' }}
+  </button>
 </header>
 
 <main class="content">
