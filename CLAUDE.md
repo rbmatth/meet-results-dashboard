@@ -8,24 +8,28 @@ A pipeline that turns scraped HY-TEK Meet Manager swim-meet result pages into a 
 Angular SPA. Data flows in four stages:
 
 ```
-scrape.sh          results/<MEET>/*.htm   (≈180 fixed-width HTML tables per meet)
+scrape.js      →   results/<MEET>/*.htm   (≈180 fixed-width HTML tables per meet)
 parse_meet.js  →   meets.db               (normalized SQLite, schema.sql)
 export_json.js →   web/public/data/*.json (denormalized per-meet payloads + index.json)
 web/ (Angular) →   consumes the JSON at runtime
 ```
 
-The two Node scripts and the Angular app are **separate projects** with separate
+The three Node scripts and the Angular app are **separate projects** with separate
 `package.json` files (root and `web/`).
 
 ## Commands
 
 ### Data pipeline (root, CommonJS, Node ≥ 22.5, zero npm deps — uses built-in `node:sqlite`)
 ```bash
+node scrape.js 2026CSA                         # download a meet's pages into results/2026CSA
 node parse_meet.js results/2025CSA meets.db   # parse one meet dir into the DB (idempotent)
 node export_json.js meets.db web/public/data  # export all meets to JSON the SPA loads
 npm run build:data                            # parse both meets + export in one step
-./scrape.sh                                   # re-scrape the source site (edit MEET_ID first)
 ```
+`scrape.js` discovers pages from the meet's `evtindex.htm` and writes directly into
+`results/<MEET>/` (dependency-free, Node ≥ 22 global `fetch`). It re-fetches by default;
+pass `--skip-existing` to keep files already on disk, or `--limit N` to cap downloads while
+testing. It replaced the old wget-based `scrape.sh`.
 Re-running `parse_meet.js` for a meet deletes its rows (FK cascade) and reloads — multiple
 meets share one DB file. After changing source data, always re-run **both** parse and export;
 the SPA reads only the JSON, never the DB.
