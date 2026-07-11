@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ageGroupOptions } from '../../core/age-groups';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
 import { Column, DataTable } from '../../shared/data-table';
@@ -54,7 +55,7 @@ export class Events {
   private divisionEvents = computed(() =>
     (this.data.data()?.events ?? []).filter((e) => e.division === this.div.division()),
   );
-  ageGroups = computed(() => uniq(this.divisionEvents().map((e) => e.age_group)));
+  ageGroups = computed(() => ageGroupOptions(this.divisionEvents()));
   strokes = computed(() => uniq(this.divisionEvents().map((e) => e.stroke)));
 
   columns = computed<Column<Row>[]>(() => [

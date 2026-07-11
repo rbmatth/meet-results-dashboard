@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ageGroupOptions } from '../../core/age-groups';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
 import { decidingRound } from '../../core/scoring';
@@ -78,7 +79,11 @@ export class Scores {
   gAge = signal('');
 
   ageGroups = computed(() => {
-    const groups = [...new Set((this.data.data()?.events ?? []).map((e) => e.age_group))].sort();
+    // Scoped to the active division -- Open and Champ have different age-group
+    // boundaries (e.g. Open alone has a 6-and-under bracket), so mixing them here
+    // would leak the other division's groups into this one's dropdown.
+    const events = (this.data.data()?.events ?? []).filter((e) => e.division === this.div.division());
+    const groups = ageGroupOptions(events);
     if (groups.length && !this.gAge()) queueMicrotask(() => this.gAge.set(groups[0]));
     return groups;
   });

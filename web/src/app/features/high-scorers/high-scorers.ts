@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ageGroupFor, ageGroupOptions } from '../../core/age-groups';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
 import { Column, DataTable } from '../../shared/data-table';
@@ -33,10 +34,10 @@ interface Row {
           <option value="">All</option><option value="F">Girls</option><option value="M">Boys</option>
         </select>
       </label>
-      <label>Age
-        <select (change)="age.set($any($event.target).value)">
+      <label>Age group
+        <select (change)="ageGroup.set($any($event.target).value)">
           <option value="">All</option>
-          @for (a of ages(); track a) { <option [value]="a">{{ a }}</option> }
+          @for (a of ageGroups(); track a) { <option [value]="a">{{ a }}</option> }
         </select>
       </label>
     </div>
@@ -48,10 +49,13 @@ export class HighScorers {
   protected div = inject(DivisionService);
   team = signal('');
   gender = signal('');
-  age = signal('');
+  ageGroup = signal('');
 
   teams = computed(() => this.data.data()?.teams ?? []);
-  ages = computed(() => [...new Set((this.data.data()?.swimmers ?? []).map((s) => s.age).filter((a): a is number => a != null))].sort((a, b) => a - b));
+  private divisionEvents = computed(() =>
+    (this.data.data()?.events ?? []).filter((e) => e.division === this.div.division()),
+  );
+  ageGroups = computed(() => ageGroupOptions(this.divisionEvents()));
 
   columns = computed<Column<Row>[]>(() => [
     { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
@@ -68,12 +72,13 @@ export class HighScorers {
     if (!d || !sb) return [];
     const k = this.div.key();
     const swById = this.data.swimmerById();
+    const events = this.divisionEvents();
     const filtered = sb.swimmers
       .map((s) => ({ score: s, sw: swById.get(s.swimmerId) }))
       .filter(({ sw }) => sw &&
         (!this.team() || String(sw.team_id) === this.team()) &&
         (!this.gender() || sw.gender === this.gender()) &&
-        (!this.age() || String(sw.age) === this.age()))
+        (!this.ageGroup() || ageGroupFor(sw.age, events) === this.ageGroup()))
       .filter(({ score }) => score[k] > 0)
       .sort((a, b) => b.score[k] - a.score[k]);
     return filtered.map(({ score, sw }, i) => ({
