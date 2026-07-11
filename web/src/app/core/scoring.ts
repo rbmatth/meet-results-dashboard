@@ -87,8 +87,10 @@ export interface ScoreBook {
   // Seed-based prediction restricted to events that HAVE been completed — a like-for-like
   // seed baseline for the same events `teams` (actual) covers, so the two are comparable.
   teamsPredictedThroughCompleted: TeamScore[];
-  // Actual points for completed events + seed prediction for the rest: the projected final
-  // standings that account for results already in. (= teams + teamsPredicted - teamsPredictedThroughCompleted.)
+  // Actual points for completed events + projected points for the rest: the projected
+  // final standings that account for results already in. Unlike the pure-seed columns,
+  // the "rest" is ranked by prelim swum times where available (a better predictor once
+  // prelims are in), falling back to seed times for genuinely unswum events.
   teamsProjectedFinal: TeamScore[];
   groups: GroupScore[];
   swimmers: SwimmerScore[];
@@ -140,6 +142,7 @@ export function computeScoreBook(data: MeetData): ScoreBook {
   const teamActual = new Map<number, DivisionPoints>();
   const teamPredicted = new Map<number, DivisionPoints>();
   const teamPredictedCompleted = new Map<number, DivisionPoints>();
+  const teamProjectedRemaining = new Map<number, DivisionPoints>();
   const groupActual = new Map<string, GroupScore>();
   const swimmerActual = new Map<number, SwimmerScore>();
   const swimmerPredicted = new Map<number, SwimmerScore>();
@@ -191,19 +194,35 @@ export function computeScoreBook(data: MeetData): ScoreBook {
       }
     }
 
-    // ----- Predicted: rank entrants by seed, award as if seeds held -----
-    const entrants = entryRoundResults(eventResults, division)
-      .filter((r) => r.seed_cs != null && r.team_id != null)
-      .sort((a, b) => a.seed_cs! - b.seed_cs!);
-    entrants.forEach((r, i) => {
-      const pts = pointsForPlace(division, i + 1, 1, isRelay);
-      if (pts === 0) return;
-      addPoints(ensureTeam(teamPredicted, r.team_id!), division, pts);
-      if (isCompleted) addPoints(ensureTeam(teamPredictedCompleted, r.team_id!), division, pts);
-      if (!isRelay && r.swimmer_id != null) {
-        addPoints(ensureSwimmer(swimmerPredicted, r.swimmer_id, r.team_id!), division, pts);
-      }
-    });
+    // ----- Predicted: rank entrants, award as if that order held -----
+    const entrants = entryRoundResults(eventResults, division).filter(
+      (r) => r.seed_cs != null && r.team_id != null,
+    );
+    // Seed-based prediction (pure pre-meet seeds): the "original" full-meet prediction
+    // and its completed-events subset. Always ranked by seed time.
+    [...entrants]
+      .sort((a, b) => a.seed_cs! - b.seed_cs!)
+      .forEach((r, i) => {
+        const pts = pointsForPlace(division, i + 1, 1, isRelay);
+        if (pts === 0) return;
+        addPoints(ensureTeam(teamPredicted, r.team_id!), division, pts);
+        if (isCompleted) addPoints(ensureTeam(teamPredictedCompleted, r.team_id!), division, pts);
+        if (!isRelay && r.swimmer_id != null) {
+          addPoints(ensureSwimmer(swimmerPredicted, r.swimmer_id, r.team_id!), division, pts);
+        }
+      });
+    // Forward projection for events NOT yet finaled: rank by best available time —
+    // the prelim swum time when present (a far better predictor than an old seed once
+    // prelims are in), else the seed. Completed events contribute their actual points.
+    if (!isCompleted) {
+      [...entrants]
+        .sort((a, b) => projectionTimeCs(a) - projectionTimeCs(b))
+        .forEach((r, i) => {
+          const pts = pointsForPlace(division, i + 1, 1, isRelay);
+          if (pts === 0) return;
+          addPoints(ensureTeam(teamProjectedRemaining, r.team_id!), division, pts);
+        });
+    }
 
     // ----- Improvement: achieved time vs entry seed, per individual entrant -----
     if (!isRelay) {
@@ -236,16 +255,16 @@ export function computeScoreBook(data: MeetData): ScoreBook {
   const teamsPredicted = toTeamScores(teamPredicted);
   const teamsPredictedThroughCompleted = toTeamScores(teamPredictedCompleted);
 
-  // Projected final = actual (completed) + predicted (remaining). Since teamPredicted
-  // already sums ALL events, the remaining part is teamPredicted - teamPredictedCompleted.
+  // Projected final = actual points for completed events + the prelim-informed
+  // projection for events still to come (teamProjectedRemaining only accumulated the
+  // not-yet-completed ones).
   const projectedFinal = new Map<number, DivisionPoints>();
-  for (const id of new Set([...teamActual.keys(), ...teamPredicted.keys()])) {
+  for (const id of new Set([...teamActual.keys(), ...teamProjectedRemaining.keys()])) {
     const actual = teamActual.get(id) ?? emptyDiv();
-    const predAll = teamPredicted.get(id) ?? emptyDiv();
-    const predDone = teamPredictedCompleted.get(id) ?? emptyDiv();
+    const remaining = teamProjectedRemaining.get(id) ?? emptyDiv();
     projectedFinal.set(id, {
-      champ: actual.champ + predAll.champ - predDone.champ,
-      open: actual.open + predAll.open - predDone.open,
+      champ: actual.champ + remaining.champ,
+      open: actual.open + remaining.open,
     });
   }
   const teamsProjectedFinal = toTeamScores(projectedFinal);
@@ -281,4 +300,12 @@ export function computeScoreBook(data: MeetData): ScoreBook {
 // Prefer later rounds (final over prelim) when choosing a swimmer's achieved time.
 function roundRank(rt: RoundType): number {
   return rt === 'PRELIM' ? 0 : rt === 'TIMED_FINAL' ? 1 : 2;
+}
+
+// Ranking time for the forward projection of a not-yet-finaled event: an entrant's real
+// swum time (e.g. their prelim) when present, else the seed. A DQ/NS carries a time_code
+// and no usable time, so it falls back to the seed. Entrants are pre-filtered to have a
+// seed, so the result is always defined.
+function projectionTimeCs(r: Result): number {
+  return r.time_cs != null && !r.time_code ? r.time_cs : r.seed_cs!;
 }

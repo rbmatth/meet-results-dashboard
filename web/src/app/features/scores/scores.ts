@@ -39,7 +39,7 @@ interface TopScorerRow {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>{{ div.label() }} - Team Standings</h1>
-    <p class="muted">{{ div.label() }} competition only; relays score 2x individual. Current = points scored so far. Seed so far = what seed times predicted for those same completed events (vs seed = how the actual differs). Proj. final = current results plus seed predictions for events still to come. Seed (full) = the original all-events seed prediction.</p>
+    <p class="muted">{{ div.label() }} competition only; relays score 2x individual. Current = points scored so far. Seed so far = what seed times predicted for those same completed events (vs seed = how the actual differs). Proj. final = current results plus a projection for events still to come (using prelim times where available, else seed times). Seed (full) = the original all-events seed prediction.</p>
     @if (scoredEventCount() < totalEventCount()) {
       <p class="banner">Partial results: {{ scoredEventCount() }} of {{ totalEventCount() }} listed events scored so far.</p>
     }

@@ -140,6 +140,34 @@ describe('computeScoreBook', () => {
     expect(get(sb.teamsProjectedFinal, 20)).toBe(60);
   });
 
+  it('projects not-yet-finaled events from prelim times, not seeds', () => {
+    // Event 1 is DONE (finaled). Event 4 has prelims swum but no final: seeds favor
+    // team 20, but team 10 was faster in prelims (a seed upset). Projected final must
+    // use the prelim time for event 4, while the pure-seed columns stay on seeds.
+    const champEvent2 = { ...champEvent, id: 4, number: 2 };
+    const results = [
+      // completed event 1: team 10 wins
+      res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3050 }),
+      res({ id: 2, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 20, swimmer_id: 200, place: 2, time_cs: 3200 }),
+      // event 4: prelims only. Seed favors team 20 (3200 < 3300); prelim time favors
+      // team 10 (3000 < 3400).
+      res({ id: 3, event_id: 4, division: 'CHAMP', round_type: 'PRELIM', team_id: 10, swimmer_id: 101, seed_cs: 3300, time_cs: 3000 }),
+      res({ id: 4, event_id: 4, division: 'CHAMP', round_type: 'PRELIM', team_id: 20, swimmer_id: 201, seed_cs: 3200, time_cs: 3400 }),
+    ];
+    const sb = computeScoreBook(meet([champEvent, champEvent2], results, [10, 20]));
+    const get = (arr: typeof sb.teams, id: number) => arr.find((t) => t.teamId === id)!.champ;
+
+    // Seed (full): event 1 seeds are absent (finals-only rows), so only event 4 seeds
+    // count -> team 20 (faster seed) 32, team 10 28.
+    expect(get(sb.teamsPredicted, 20)).toBe(32);
+    expect(get(sb.teamsPredicted, 10)).toBe(28);
+    // Projected final = event 1 actual + event 4 by prelim time:
+    //   team 10: 32 (won ev1) + 32 (fastest prelim ev4) = 64
+    //   team 20: 28 (2nd ev1) + 28 (2nd prelim ev4) = 56
+    expect(get(sb.teamsProjectedFinal, 10)).toBe(64);
+    expect(get(sb.teamsProjectedFinal, 20)).toBe(56);
+  });
+
   it('keeps champ and open independent (no combined total)', () => {
     const results = [
       res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3000 }),
