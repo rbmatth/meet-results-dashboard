@@ -15,6 +15,16 @@
   --bad: #f87171;
   --warn: #fbbf24;
   --chip: #334155;
+  /* Categorical chart palette (dark default) — validated 8-hue set, ordered for
+     CVD adjacent-separation. Light overrides mirror in both light blocks below. */
+  --cat-1: #3987e5;
+  --cat-2: #199e70;
+  --cat-3: #c98500;
+  --cat-4: #008300;
+  --cat-5: #9085e9;
+  --cat-6: #e66767;
+  --cat-7: #d55181;
+  --cat-8: #d95926;
 }
 
 @media (prefers-color-scheme: light) {
@@ -32,6 +42,14 @@
     --bad: #dc2626;
     --warn: #d97706;
     --chip: #e2e8f0;
+    --cat-1: #2a78d6;
+    --cat-2: #1baf7a;
+    --cat-3: #eda100;
+    --cat-4: #008300;
+    --cat-5: #4a3aa7;
+    --cat-6: #e34948;
+    --cat-7: #e87ba4;
+    --cat-8: #eb6834;
   }
 }
 
@@ -49,6 +67,14 @@
   --bad: #dc2626;
   --warn: #d97706;
   --chip: #e2e8f0;
+  --cat-1: #2a78d6;
+  --cat-2: #1baf7a;
+  --cat-3: #eda100;
+  --cat-4: #008300;
+  --cat-5: #4a3aa7;
+  --cat-6: #e34948;
+  --cat-7: #e87ba4;
+  --cat-8: #eb6834;
 }
 
 * { box-sizing: border-box; }

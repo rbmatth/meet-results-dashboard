@@ -5,6 +5,7 @@ import { map } from 'rxjs';
 import { DataService } from '../../core/data.service';
 import { DivisionService } from '../../core/division.service';
 import { DataTable, Column } from '../../shared/data-table';
+import { PieChart, PieSlice } from '../../shared/pie-chart';
 
 interface GroupRow {
   key: string;
@@ -30,7 +31,7 @@ interface RosterRow {
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [RouterLink, DataTable],
+  imports: [RouterLink, DataTable, PieChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (team(); as t) {
@@ -45,8 +46,9 @@ interface RosterRow {
         <div class="stat"><div class="n">{{ roster().length }}</div><div class="l">Swimmers</div></div>
       </div>
 
-      <h2>Points by gender &amp; age group</h2>
-      <app-data-table [columns]="groupColumns()" [rows]="groupRows()" searchPlaceholder="Filter groups…" />
+      <h2>Points by bracket</h2>
+      <app-pie-chart [slices]="pieSlices()" />
+      <app-data-table [columns]="groupColumns()" [rows]="groupRows()" searchPlaceholder="Filter brackets…" />
 
       <h2>Top scorers</h2>
       <app-data-table [columns]="topScorerColumns()" [rows]="topScorerRows()" [initialSort]="{ key: 'rank', dir: 'asc' }" searchPlaceholder="Filter scorers…" />
@@ -77,6 +79,19 @@ export class TeamDetail {
       .filter((g) => g.teamId === this.id() && g[k] > 0)
       .map((g) => ({ key: `${g.gender}-${g.ageGroup}`, gender: g.gender === 'F' ? 'Girls' : 'Boys', ageGroup: g.ageGroup, points: this.r2(g[k]) }))
       .sort((a, b) => a.gender.localeCompare(b.gender) || a.ageGroup.localeCompare(b.ageGroup));
+  });
+
+  // Point share by bracket for the pie: brackets ranked by points, top 8 kept and
+  // the rest folded into a neutral "Other" slice (per the categorical no-cycling
+  // rule). "Girls 11-12" etc. — the same bracket label used elsewhere.
+  pieSlices = computed<PieSlice[]>(() => {
+    const sorted = [...this.groups()].sort((a, b) => b.points - a.points);
+    const head = sorted.slice(0, 8).map((g) => ({ label: `${g.gender} ${g.ageGroup}`, value: g.points }));
+    const tail = sorted.slice(8);
+    if (tail.length) {
+      head.push({ label: `Other (${tail.length})`, value: this.r2(tail.reduce((s, g) => s + g.points, 0)) });
+    }
+    return head;
   });
 
   topScorers = computed(() => {
