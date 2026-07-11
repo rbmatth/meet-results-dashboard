@@ -9,10 +9,12 @@ interface StandingsRow {
   rank: number;
   teamId: number;
   code: string;
-  points: number;
+  points: number; // current actual points (completed events)
   pct: number;
-  predicted: number;
-  delta: number;
+  seedSoFar: number; // seed-based prediction for the completed events only
+  projected: number; // projected final = actual completed + seed for remaining
+  predicted: number; // original seed-based prediction across all events
+  delta: number; // current - seedSoFar (over/under seed on what's been swum)
 }
 
 interface GroupStandingsRow {
@@ -37,7 +39,7 @@ interface TopScorerRow {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>{{ div.label() }} - Team Standings</h1>
-    <p class="muted">Points are the {{ div.label() }} competition only; relays score 2x individual. Predicted ranks each event by seed time.</p>
+    <p class="muted">{{ div.label() }} competition only; relays score 2x individual. Current = points scored so far. Seed so far = what seed times predicted for those same completed events (vs seed = how the actual differs). Proj. final = current results plus seed predictions for events still to come. Seed (full) = the original all-events seed prediction.</p>
     @if (scoredEventCount() < totalEventCount()) {
       <p class="banner">Partial results: {{ scoredEventCount() }} of {{ totalEventCount() }} listed events scored so far.</p>
     }
@@ -92,15 +94,27 @@ export class Scores {
     const sb = this.data.scoreBook();
     if (!sb) return [];
     const k = this.div.key();
+    const actual = new Map(sb.teams.map((t) => [t.teamId, t]));
     const pred = new Map(sb.teamsPredicted.map((t) => [t.teamId, t]));
-    const rows = sb.teams
-      .map((t) => ({
-        teamId: t.teamId,
-        code: this.data.teamCode(t.teamId),
-        points: r2(t[k]),
-        predicted: r2(pred.get(t.teamId)?.[k] ?? 0),
-        delta: r2(t[k] - (pred.get(t.teamId)?.[k] ?? 0)),
-      }))
+    const seedSoFar = new Map(sb.teamsPredictedThroughCompleted.map((t) => [t.teamId, t]));
+    const projected = new Map(sb.teamsProjectedFinal.map((t) => [t.teamId, t]));
+    // teamsProjectedFinal covers every team with any actual or predicted points, so it's
+    // the widest set — a team may have a projection without having scored anything yet.
+    const rows = sb.teamsProjectedFinal
+      .map((pf) => {
+        const teamId = pf.teamId;
+        const points = actual.get(teamId)?.[k] ?? 0;
+        const ssf = seedSoFar.get(teamId)?.[k] ?? 0;
+        return {
+          teamId,
+          code: this.data.teamCode(teamId),
+          points: r2(points),
+          seedSoFar: r2(ssf),
+          projected: r2(projected.get(teamId)?.[k] ?? 0),
+          predicted: r2(pred.get(teamId)?.[k] ?? 0),
+          delta: r2(points - ssf),
+        };
+      })
       .sort((a, b) => b.points - a.points);
     const max = Math.max(1, ...rows.map((r) => r.points));
     return rows.map((r) => ({ ...r, pct: (r.points / max) * 100 }));
@@ -192,14 +206,16 @@ export class Scores {
     return [
       { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
       { key: 'code', header: 'Team', value: (r) => r.code, link: (r) => this.div.link('teams', r.teamId) },
-      { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
+      { key: 'points', header: 'Current', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
       { key: 'pct', header: '', value: (r) => r.pct },
-      { key: 'predicted', header: 'Predicted', value: (r) => r.predicted, numeric: true, defaultDir: 'desc' },
+      { key: 'seedSoFar', header: 'Seed so far', value: (r) => r.seedSoFar, numeric: true, defaultDir: 'desc' },
       {
-        key: 'delta', header: 'Delta vs seed', value: (r) => r.delta, numeric: true, defaultDir: 'desc',
+        key: 'delta', header: 'vs seed', value: (r) => r.delta, numeric: true, defaultDir: 'desc',
         display: (r) => this.signed(r.delta),
         cellClass: (r) => (r.delta > 0 ? 'pos' : r.delta < 0 ? 'neg' : null),
       },
+      { key: 'projected', header: 'Proj. final', value: (r) => r.projected, numeric: true, defaultDir: 'desc' },
+      { key: 'predicted', header: 'Seed (full)', value: (r) => r.predicted, numeric: true, defaultDir: 'desc' },
     ];
   }
 

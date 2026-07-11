@@ -82,7 +82,14 @@ export interface Improvement {
 
 export interface ScoreBook {
   teams: TeamScore[];
+  // Seed-based prediction across ALL events (the "original" full-meet prediction).
   teamsPredicted: TeamScore[];
+  // Seed-based prediction restricted to events that HAVE been completed — a like-for-like
+  // seed baseline for the same events `teams` (actual) covers, so the two are comparable.
+  teamsPredictedThroughCompleted: TeamScore[];
+  // Actual points for completed events + seed prediction for the rest: the projected final
+  // standings that account for results already in. (= teams + teamsPredicted - teamsPredictedThroughCompleted.)
+  teamsProjectedFinal: TeamScore[];
   groups: GroupScore[];
   swimmers: SwimmerScore[];
   swimmersPredicted: SwimmerScore[];
@@ -132,6 +139,7 @@ export function computeScoreBook(data: MeetData): ScoreBook {
 
   const teamActual = new Map<number, DivisionPoints>();
   const teamPredicted = new Map<number, DivisionPoints>();
+  const teamPredictedCompleted = new Map<number, DivisionPoints>();
   const groupActual = new Map<string, GroupScore>();
   const swimmerActual = new Map<number, SwimmerScore>();
   const swimmerPredicted = new Map<number, SwimmerScore>();
@@ -165,6 +173,9 @@ export function computeScoreBook(data: MeetData): ScoreBook {
     const deciding = eventResults.filter(
       (r) => r.round_type === decidingRound(division) && r.place != null,
     );
+    // An event counts as "completed" once it has any placed deciding-round result
+    // (same notion the standings' scored/total banner uses).
+    const isCompleted = deciding.length > 0;
     const tieCounts = new Map<number, number>();
     for (const r of deciding) tieCounts.set(r.place!, (tieCounts.get(r.place!) ?? 0) + 1);
     for (const r of deciding) {
@@ -188,6 +199,7 @@ export function computeScoreBook(data: MeetData): ScoreBook {
       const pts = pointsForPlace(division, i + 1, 1, isRelay);
       if (pts === 0) return;
       addPoints(ensureTeam(teamPredicted, r.team_id!), division, pts);
+      if (isCompleted) addPoints(ensureTeam(teamPredictedCompleted, r.team_id!), division, pts);
       if (!isRelay && r.swimmer_id != null) {
         addPoints(ensureSwimmer(swimmerPredicted, r.swimmer_id, r.team_id!), division, pts);
       }
@@ -222,6 +234,21 @@ export function computeScoreBook(data: MeetData): ScoreBook {
 
   const teams = toTeamScores(teamActual);
   const teamsPredicted = toTeamScores(teamPredicted);
+  const teamsPredictedThroughCompleted = toTeamScores(teamPredictedCompleted);
+
+  // Projected final = actual (completed) + predicted (remaining). Since teamPredicted
+  // already sums ALL events, the remaining part is teamPredicted - teamPredictedCompleted.
+  const projectedFinal = new Map<number, DivisionPoints>();
+  for (const id of new Set([...teamActual.keys(), ...teamPredicted.keys()])) {
+    const actual = teamActual.get(id) ?? emptyDiv();
+    const predAll = teamPredicted.get(id) ?? emptyDiv();
+    const predDone = teamPredictedCompleted.get(id) ?? emptyDiv();
+    projectedFinal.set(id, {
+      champ: actual.champ + predAll.champ - predDone.champ,
+      open: actual.open + predAll.open - predDone.open,
+    });
+  }
+  const teamsProjectedFinal = toTeamScores(projectedFinal);
 
   const predictedVsActual: TeamPredictedActual[] = data.teams
     .map((t) => {
@@ -240,6 +267,8 @@ export function computeScoreBook(data: MeetData): ScoreBook {
   return {
     teams,
     teamsPredicted,
+    teamsPredictedThroughCompleted,
+    teamsProjectedFinal,
     groups: [...groupActual.values()].sort((a, b) => b.champ - a.champ),
     swimmers: [...swimmerActual.values()].sort((a, b) => b.champ - a.champ),
     swimmersPredicted: [...swimmerPredicted.values()].sort((a, b) => b.champ - a.champ),

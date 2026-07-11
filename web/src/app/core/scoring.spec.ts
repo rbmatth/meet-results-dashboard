@@ -107,6 +107,39 @@ describe('computeScoreBook', () => {
     expect(pva10.deltaOpen).toBe(0); // no open events
   });
 
+  it('separates seed-through-completed and projected-final for an in-progress meet', () => {
+    // Event 1 (champ) is DONE: team 20 was seed favorite but team 10 actually won.
+    // Event 2 (a second champ event, id 4) is NOT swum yet: only ENTRY seeds, team 20 faster.
+    const champEvent2 = { ...champEvent, id: 4, number: 2 };
+    const results = [
+      // completed event
+      res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'PRELIM', team_id: 10, swimmer_id: 100, seed_cs: 3100 }),
+      res({ id: 2, event_id: 1, division: 'CHAMP', round_type: 'PRELIM', team_id: 20, swimmer_id: 200, seed_cs: 3000 }),
+      res({ id: 3, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3050 }),
+      res({ id: 4, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 20, swimmer_id: 200, place: 2, time_cs: 3200 }),
+      // not-yet-swum event (ENTRY only)
+      res({ id: 5, event_id: 4, division: 'CHAMP', round_type: 'ENTRY', team_id: 10, swimmer_id: 101, seed_cs: 3300 }),
+      res({ id: 6, event_id: 4, division: 'CHAMP', round_type: 'ENTRY', team_id: 20, swimmer_id: 201, seed_cs: 3200 }),
+    ];
+    const sb = computeScoreBook(meet([champEvent, champEvent2], results, [10, 20]));
+    const get = (arr: typeof sb.teams, id: number) => arr.find((t) => t.teamId === id)!.champ;
+
+    // Current: team 10 won the one completed event (32), team 20 second (28).
+    expect(get(sb.teams, 10)).toBe(32);
+    expect(get(sb.teams, 20)).toBe(28);
+    // Seed through completed: only event 1's seeds -> team 20 favored (32), team 10 (28).
+    expect(get(sb.teamsPredictedThroughCompleted, 20)).toBe(32);
+    expect(get(sb.teamsPredictedThroughCompleted, 10)).toBe(28);
+    // Original full-meet seed: both events by seed -> 20 wins both (32+32), 10 second both (28+28).
+    expect(get(sb.teamsPredicted, 20)).toBe(64);
+    expect(get(sb.teamsPredicted, 10)).toBe(56);
+    // Projected final = actual(event1) + seed(event2):
+    //   team 10: 32 (won ev1) + 28 (seed 2nd ev2) = 60
+    //   team 20: 28 (2nd ev1) + 32 (seed 1st ev2) = 60
+    expect(get(sb.teamsProjectedFinal, 10)).toBe(60);
+    expect(get(sb.teamsProjectedFinal, 20)).toBe(60);
+  });
+
   it('keeps champ and open independent (no combined total)', () => {
     const results = [
       res({ id: 1, event_id: 1, division: 'CHAMP', round_type: 'FINAL', team_id: 10, swimmer_id: 100, place: 1, time_cs: 3000 }),
