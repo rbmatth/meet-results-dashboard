@@ -7,7 +7,7 @@ import { Column, DataTable } from '../../shared/data-table';
 // A "high scorers" board is a leaderboard, not a full roster — cap both lists so a big
 // meet doesn't dump hundreds of rows. Filters narrow below these caps anyway.
 const MAX_INDIVIDUALS = 50;
-const MAX_TEAM_DIVISIONS = 30;
+const MAX_TEAM_BRACKETS = 30;
 
 interface Row {
   rank: number;
@@ -19,11 +19,11 @@ interface Row {
   points: number;
 }
 
-interface TeamDivisionRow {
+interface TeamBracketRow {
   rank: number;
   teamId: number;
   team: string;
-  division: string; // e.g. "Girls 11-12"
+  bracket: string; // gender + age group, e.g. "Girls 11-12"
   points: number;
 }
 
@@ -58,9 +58,9 @@ interface TeamDivisionRow {
     <h2>Top individual scorers</h2>
     <app-data-table [columns]="columns()" [rows]="rows()" [initialSort]="{ key: 'points', dir: 'desc' }" searchPlaceholder="Search names…" />
 
-    <h2>Top team divisions</h2>
-    <p class="muted">Points a team scored within one gender + age group (individual and relay), e.g. FST Girls 11-12.</p>
-    <app-data-table [columns]="teamDivisionColumns()" [rows]="teamDivisionRows()" [initialSort]="{ key: 'points', dir: 'desc' }" searchPlaceholder="Search teams…" />
+    <h2>Top team brackets</h2>
+    <p class="muted">Points a team scored within one bracket — a gender + age group (individual and relay), e.g. FST Girls 11-12.</p>
+    <app-data-table [columns]="teamBracketColumns()" [rows]="teamBracketRows()" [initialSort]="{ key: 'points', dir: 'desc' }" searchPlaceholder="Search teams…" />
   `,
 })
 export class HighScorers {
@@ -85,10 +85,10 @@ export class HighScorers {
     { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
   ]);
 
-  teamDivisionColumns = computed<Column<TeamDivisionRow>[]>(() => [
+  teamBracketColumns = computed<Column<TeamBracketRow>[]>(() => [
     { key: 'rank', header: '#', value: (r) => r.rank, numeric: true },
     { key: 'team', header: 'Team', value: (r) => r.team, link: (r) => this.div.link('teams', r.teamId) },
-    { key: 'division', header: 'Division', value: (r) => r.division },
+    { key: 'bracket', header: 'Bracket', value: (r) => r.bracket },
     { key: 'points', header: 'Points', value: (r) => r.points, numeric: true, defaultDir: 'desc' },
   ]);
 
@@ -119,7 +119,7 @@ export class HighScorers {
     }));
   });
 
-  teamDivisionRows = computed<TeamDivisionRow[]>(() => {
+  teamBracketRows = computed<TeamBracketRow[]>(() => {
     const sb = this.data.scoreBook();
     if (!sb) return [];
     const k = this.div.key();
@@ -130,12 +130,12 @@ export class HighScorers {
         (!this.gender() || g.gender === this.gender()) &&
         (!this.ageGroup() || g.ageGroup === this.ageGroup()))
       .sort((a, b) => b[k] - a[k])
-      .slice(0, MAX_TEAM_DIVISIONS)
+      .slice(0, MAX_TEAM_BRACKETS)
       .map((g, i) => ({
         rank: i + 1,
         teamId: g.teamId,
         team: this.data.teamCode(g.teamId),
-        division: `${genderLabel(g.gender)} ${g.ageGroup}`,
+        bracket: `${genderLabel(g.gender)} ${g.ageGroup}`,
         points: round(g[k]),
       }));
   });
