@@ -45,11 +45,15 @@ function refreshAndPush() {
 
   console.log('Data changed, committing + pushing:\n' + changed);
   try {
-    run('git', ['add', '--', dataDir]);
+    // Commit ONLY the data dir via an explicit pathspec (not `git add` + bare commit),
+    // so a bare `git commit` can't sweep up whatever else happens to be staged in the
+    // working tree — e.g. source edits in progress in another session.
     run('git', [
       'commit',
       '-m',
       `data: refresh ${meetId || 'meet'} ${stamp}\n\nAutomated commit from refresh-and-push.js.`,
+      '--',
+      dataDir,
     ]);
     run('git', ['push']);
   } catch (e) {
