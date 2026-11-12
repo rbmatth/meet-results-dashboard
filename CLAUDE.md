@@ -79,7 +79,7 @@ standings. The active context is `(meet, division)`, both read from the URL:
   `div.eventLink(...)`, never hand-build paths. Its `key()` (`'champ' | 'open'`) selects the
   matching field on score objects.
 - Route config in `app.routes.ts` mounts the same `divisionRoutes` under both `championship`
-  and `open`. `default-meet.guard.ts` redirects `/` to the first meet's Championship standings.
+  and `open`. `default-meet.guard.ts` redirects `/` to the **newest** meet's Championship standings (latest start date, via `newestMeetCode` in `meet-index.ts`; `index.json` itself lists meets oldest first).
 
 ### Scoring engine — pure, in the browser
 `web/src/app/core/scoring.ts` computes the entire `ScoreBook` (team/group/swimmer standings,
